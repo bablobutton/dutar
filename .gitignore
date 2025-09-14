@@ -1,5 +1,5 @@
 # Build artifacts
-target/*
+target/
 
 # Logs
 *.log
@@ -9,3 +9,5 @@ target/*
 
 #intellij files
 .idea/*
+
+.DS_Store

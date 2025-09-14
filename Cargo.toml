@@ -1,16 +1,17 @@
-[workspace]
-members = ["crates/*", "bin/*"]
-resolver = "2"
-
-[workspace.package]
+[package]
+name = "dutar"
+version = "0.1.0"
+description = "TUI Music Player"
+authors = ["Ata Altyyev <altyew44@gmail.com>", "Konstantin Dal <email@email.com>"]
 edition = "2024"
 
-
-[workspace.dependencies]
-symphonia = {version = "0.5", features = ["all-codecs"]}
+[dependencies]
+crossterm = "0.28.1"
+ratatui = "0.29.0"
+color-eyre = "0.6.3"
+symphonia = "0.5"
 thiserror = "2.0.16"
 tracing = "0.1.41"
-
 
 [profile.release]
 lto = "thin"
@@ -18,4 +19,4 @@ codegen-units = 1
 opt-level = 3
 
 [profile.dev]
-opt-level = 1
+opt-level = 0
