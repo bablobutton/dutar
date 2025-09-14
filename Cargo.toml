@@ -8,6 +8,8 @@ edition = "2024"
 
 [workspace.dependencies]
 symphonia = {version = "0.5", features = ["all-codecs"]}
+thiserror = "2.0.16"
+tracing = "0.1.41"
 
 
 [profile.release]
