@@ -14,9 +14,7 @@ pub struct ReadOutcome {
     pub eof: bool,
 }
 
-pub struct Decoder {
-
-}
+pub struct Decoder {}
 
 impl Decoder {
     pub fn open<P: AsRef<std::path::Path>>(path: P) -> Result<Self, CoreError> {
@@ -29,5 +27,4 @@ impl Decoder {
     pub fn read_into(dst: &mut [f32]) -> Result<ReadOutcome, CoreError> {
         unimplemented!("Coming soon...")
     }
-
 }
