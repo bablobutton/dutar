@@ -1,4 +1,4 @@
-
+use crate::error::*;
 #[derive(Debug)]
 pub struct TrackInfo {
     pub sample_rate: u32,

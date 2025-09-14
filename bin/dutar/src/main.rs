@@ -1,3 +1,4 @@
+use dutar_core::Decoder;
 fn main() {
-    println!("Hello, world!");
+    let dec = Decoder::open("file.mp3");
 }

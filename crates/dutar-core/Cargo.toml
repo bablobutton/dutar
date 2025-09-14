@@ -5,3 +5,4 @@ edition.workspace = true
 
 [dependencies]
 symphonia = { workspace = true }
+thiserror = { workspace = true }
