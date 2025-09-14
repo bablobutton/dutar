@@ -1,0 +1,8 @@
+# Build artifacts
+target/*
+
+# Logs
+*.log
+
+# Backups
+*.rs.bk 
