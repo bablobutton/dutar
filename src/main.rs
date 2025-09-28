@@ -84,7 +84,6 @@ fn handle_key(key: event::KeyEvent) -> Option<Message> {
         event::KeyCode::Char('k') => Some(Message::TogglePlay),
         event::KeyCode::Char('q') => Some(Message::Quit),
         _ => {
-            println!("NOIMPL");
             None
         }
     }
@@ -105,26 +104,26 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
 
 fn toggle_play(model: &mut Model) {
     match model.state {
-        State::Init | State::Player(PlayerState::Paused) => {
-            play(model);
+        State::Init => {
+            play_first_time(model);
+            model.state = State::Player(PlayerState::Playing)
+        }
+        State::Player(PlayerState::Paused) => {
+            model.player.sink.play();
             model.state = State::Player(PlayerState::Playing)
         }
         State::Player(PlayerState::Playing) => {
-            pause(model);
+            model.player.sink.pause();
             model.state = State::Player(PlayerState::Paused)
         }
         _ => {}
     }
 }
 
-fn play(model: &mut Model) {
+fn play_first_time(model: &mut Model) {
     let reader = BufReader::with_capacity(
         1024 * 1024 * 5,
         File::open("resources/hydrogen.mp3").expect("this file should exist"),
     );
     model.player.sink = rodio::play(model.player.stream.mixer(), reader).unwrap();
-}
-
-fn pause(model: &mut Model) {
-    model.player.sink.pause();
 }
