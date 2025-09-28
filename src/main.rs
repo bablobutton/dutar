@@ -2,9 +2,7 @@ mod audio;
 mod tui;
 
 use color_eyre::Result;
-use ratatui::Frame;
 use ratatui::crossterm::event;
-use ratatui::widgets::Paragraph;
 use rodio::{OutputStream, Sink};
 use std::fs::File;
 use std::io::BufReader;
