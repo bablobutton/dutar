@@ -1,3 +1,13 @@
+use ratatui::{
+    Terminal,
+    backend::{Backend, CrosstermBackend},
+    crossterm::{
+        ExecutableCommand,
+        terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+    },
+};
+use std::io::stdout;
+
 // use color_eyre::Result;
 // use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 // use ratatui::{
