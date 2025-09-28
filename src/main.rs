@@ -3,28 +3,47 @@ mod tui;
 
 use color_eyre::Result;
 use ratatui::Frame;
-use ratatui::widgets::{Paragraph};
 use ratatui::crossterm::event;
+use ratatui::widgets::Paragraph;
+use rodio::{OutputStream, Sink};
+use std::fs::File;
+use std::io::BufReader;
 use std::time::Duration;
 
-#[derive(Debug, Default)]
 struct Model {
     state: State,
+    player: Player,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-enum Player {
-    Playing,
-    Paused,
+impl Model {
+    pub fn new() -> Model {
+        let stream =
+            rodio::OutputStreamBuilder::open_default_stream().expect("open default audio stream");
+        let sink = rodio::Sink::connect_new(stream.mixer());
+        Model {
+            state: State::Init,
+            player: Player { stream, sink },
+        }
+    }
 }
 
-// state tracker of the app
+struct Player {
+    stream: OutputStream,
+    sink: Sink,
+}
+
 #[derive(Debug, Default, PartialEq, Eq)]
 enum State {
     #[default]
     Init,
-    Player(Player), // nested enum for playing screen
+    Player(PlayerState), // nested enum for playing screen
     Done,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum PlayerState {
+    Playing,
+    Paused,
 }
 
 #[derive(PartialEq)]
@@ -36,10 +55,10 @@ enum Message {
 fn main() -> Result<()> {
     color_eyre::install()?;
     let mut terminal = ratatui::init();
-    let mut model = Model::default();
+    let mut model = Model::new();
 
     while model.state != State::Done {
-        terminal.draw(|frame| view(&mut model, frame))?;
+        terminal.draw(|frame| tui::render_state(&model, frame))?;
         let mut msg = handle_event(&model)?;
 
         while msg.is_some() {
@@ -51,7 +70,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn handle_event(model: &Model) -> Result<Option<Message>> {
+fn handle_event(_model: &Model) -> Result<Option<Message>> {
     if event::poll(Duration::from_millis(100))? {
         if let event::Event::Key(key) = event::read()? {
             if key.kind == event::KeyEventKind::Press {
@@ -73,22 +92,12 @@ fn handle_key(key: event::KeyEvent) -> Option<Message> {
     }
 }
 
-fn view(model: &mut Model, frame: &mut Frame) {
-    let current_state_string = match model.state {
-        State::Init => "init",
-        State::Player(Player::Playing) => "playing",
-        State::Player(Player::Paused) => "paused",
-        State::Done => "done",
-    };
-    frame.render_widget(Paragraph::new(current_state_string), frame.area());
-}
-
 fn update(model: &mut Model, msg: Message) -> Option<Message> {
     match msg {
         Message::TogglePlay => {
             toggle_play(model);
             None
-        },
+        }
         Message::Quit => {
             model.state = State::Done;
             None
@@ -98,15 +107,26 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
 
 fn toggle_play(model: &mut Model) {
     match model.state {
-        State::Init => {
-            model.state = State::Player(Player::Playing)
-        },
-        State::Player(Player::Playing) => {
-            model.state = State::Player(Player::Paused)
-        }, 
-        State::Player(Player::Paused) => {
-            model.state = State::Player(Player::Playing)
-        }, 
+        State::Init | State::Player(PlayerState::Paused) => {
+            play(model);
+            model.state = State::Player(PlayerState::Playing)
+        }
+        State::Player(PlayerState::Playing) => {
+            pause(model);
+            model.state = State::Player(PlayerState::Paused)
+        }
         _ => {}
     }
+}
+
+fn play(model: &mut Model) {
+    let reader = BufReader::with_capacity(
+        1024 * 1024 * 5,
+        File::open("resources/hydrogen.mp3").expect("this file should exist"),
+    );
+    model.player.sink = rodio::play(model.player.stream.mixer(), reader).unwrap();
+}
+
+fn pause(model: &mut Model) {
+    model.player.sink.pause();
 }

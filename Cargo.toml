@@ -12,6 +12,7 @@ color-eyre = { version = "0.6.3", default-features = false }
 symphonia = "0.5"
 thiserror = "2.0.16"
 tracing = "0.1.41"
+rodio = "0.21.1"
 
 [profile.release]
 lto = "thin"
