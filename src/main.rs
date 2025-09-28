@@ -83,9 +83,7 @@ fn handle_key(key: event::KeyEvent) -> Option<Message> {
     match key.code {
         event::KeyCode::Char('k') => Some(Message::TogglePlay),
         event::KeyCode::Char('q') => Some(Message::Quit),
-        _ => {
-            None
-        }
+        _ => None,
     }
 }
 
@@ -126,4 +124,12 @@ fn play_first_time(model: &mut Model) {
         File::open("resources/hydrogen.mp3").expect("this file should exist"),
     );
     model.player.sink = rodio::play(model.player.stream.mixer(), reader).unwrap();
+}
+
+#[cfg(test)]
+mod tests {
+    // use super::*;
+    #[test]
+    fn test_handle_event() {}
+    fn test_handle_update() {}
 }
