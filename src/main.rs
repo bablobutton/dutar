@@ -83,9 +83,7 @@ fn handle_key(key: event::KeyEvent) -> Option<Message> {
     match key.code {
         event::KeyCode::Char('k') => Some(Message::TogglePlay),
         event::KeyCode::Char('q') => Some(Message::Quit),
-        _ => {
-            None
-        }
+        _ => None,
     }
 }
 
