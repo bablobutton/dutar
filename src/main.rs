@@ -99,7 +99,7 @@ fn handle_key(key: event::KeyEvent) -> Option<Message> {
 
 fn update(model: &mut Model, msg: Message) -> Option<Message> {
     debug!(
-        "Updating current state [{:?}], received message [{:?}]",
+        "Current state [{:?}] <- Message [{:?}]",
         model.state, msg
     );
     let ret = match msg {
