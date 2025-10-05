@@ -98,10 +98,7 @@ fn handle_key(key: event::KeyEvent) -> Option<Message> {
 }
 
 fn update(model: &mut Model, msg: Message) -> Option<Message> {
-    debug!(
-        "Current state [{:?}] <- Message [{:?}]",
-        model.state, msg
-    );
+    debug!("Current state [{:?}] <- Message [{:?}]", model.state, msg);
     let ret = match msg {
         Message::TogglePlay => {
             controls::toggle_play(model);
