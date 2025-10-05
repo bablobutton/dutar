@@ -1,4 +1,5 @@
 mod audio;
+mod controls;
 mod logging;
 mod tui;
 
@@ -6,8 +7,6 @@ use color_eyre::Result;
 use log::{debug, error};
 use ratatui::crossterm::event;
 use rodio::{OutputStream, Sink};
-use std::fs::File;
-use std::io::BufReader;
 use std::time::Duration;
 
 struct Model {
@@ -99,9 +98,13 @@ fn handle_key(key: event::KeyEvent) -> Option<Message> {
 }
 
 fn update(model: &mut Model, msg: Message) -> Option<Message> {
-    match msg {
+    debug!(
+        "Updating current state [{:?}], received message [{:?}]",
+        model.state, msg
+    );
+    let ret = match msg {
         Message::TogglePlay => {
-            toggle_play(model);
+            controls::toggle_play(model);
             None
         }
         Message::Quit => {
@@ -109,11 +112,11 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
             None
         }
         Message::SkipForward => {
-            forward_seconds(model, 5);
+            controls::forward_seconds(model, 5);
             None
         }
         Message::SkipBack => {
-            backward_seconds(model, 5);
+            controls::backward_seconds(model, 5);
             None
         }
         Message::Next => {
@@ -122,64 +125,9 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
         Message::Previous => {
             todo!();
         }
-    }
-}
-
-fn toggle_play(model: &mut Model) {
-    match model.state {
-        State::Init => {
-            play_first_time(model);
-            model.state = State::Player(PlayerState::Playing)
-        }
-        State::Player(PlayerState::Paused) => {
-            model.player.sink.play();
-            model.state = State::Player(PlayerState::Playing)
-        }
-        State::Player(PlayerState::Playing) => {
-            model.player.sink.pause();
-            model.state = State::Player(PlayerState::Paused)
-        }
-        _ => {}
-    }
-}
-
-fn play_first_time(model: &mut Model) {
-    debug!("playing first song, loading from file");
-    let reader = BufReader::with_capacity(
-        1024 * 1024 * 5, // 5 MiB
-        File::open("resources/hydrogen.mp3").expect("this file should exist"),
-    );
-    model.player.sink = rodio::play(model.player.stream.mixer(), reader).unwrap();
-}
-
-fn forward_seconds(model: &mut Model, seconds: u64) {
-    if model.state == State::Player(PlayerState::Playing)
-        || model.state == State::Player(PlayerState::Paused)
-    {
-        let sink = &model.player.sink;
-        let curr_duration = sink.get_pos();
-        let skip_seconds = Duration::from_secs(seconds);
-        let curr_duration = curr_duration.saturating_add(skip_seconds);
-        if let Err(e) = sink.try_seek(curr_duration) {
-            error!("{e}");
-        }
-        debug!("forward {seconds} seconds, current_duration={curr_duration:?}");
-    }
-}
-
-fn backward_seconds(model: &mut Model, seconds: u64) {
-    if model.state == State::Player(PlayerState::Playing)
-        || model.state == State::Player(PlayerState::Paused)
-    {
-        let sink = &model.player.sink;
-        let curr_duration = sink.get_pos();
-        let skip_seconds = Duration::from_secs(seconds);
-        let curr_duration = curr_duration.saturating_sub(skip_seconds);
-        if let Err(e) = sink.try_seek(curr_duration) {
-            error!("{e}");
-        }
-        debug!("backward {seconds} seconds, current_duration={curr_duration:?}");
-    }
+    };
+    debug!("Updated state [{:?}]", model.state);
+    ret
 }
 
 #[cfg(test)]
