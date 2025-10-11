@@ -4,7 +4,7 @@ mod logging;
 mod tui;
 
 use color_eyre::Result;
-use log::{debug, error};
+use log::debug;
 use ratatui::crossterm::event;
 use rodio::{OutputStream, Sink};
 use std::time::Duration;
@@ -21,13 +21,16 @@ impl Model {
         let sink = rodio::Sink::connect_new(stream.mixer());
         Model {
             state: State::Init,
-            player: Player { stream, sink },
+            player: Player {
+                _stream: stream, // it's unused, but we can't have it dropped
+                sink: sink,
+            },
         }
     }
 }
 
 struct Player {
-    stream: OutputStream,
+    _stream: OutputStream,
     sink: Sink,
 }
 
@@ -132,7 +135,7 @@ mod tests {
     use super::*;
 
     #[test]
-    // check state transitions (not all but the important ones)
+    // state transitions (not all but the important ones)
     fn test_update() {
         let mut model = Model::new();
         assert_eq!(model.state, State::Init);

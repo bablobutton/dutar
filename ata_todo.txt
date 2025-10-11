@@ -1,0 +1,4 @@
+1. Sonq queue
+2. Somewhat nice UI 
+...
+?. P2P network
