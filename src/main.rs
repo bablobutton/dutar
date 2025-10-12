@@ -1,7 +1,9 @@
 mod audio;
 mod controls;
 mod logging;
+mod queue;
 mod tui;
+mod utils;
 
 use color_eyre::Result;
 use log::debug;

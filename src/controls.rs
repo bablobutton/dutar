@@ -1,4 +1,4 @@
-use super::{Model, PlayerState, State};
+use crate::{Model, PlayerState, State};
 use color_eyre::{Result, eyre::eyre};
 use log::{debug, error};
 use rodio::{Decoder, decoder::DecoderBuilder};
