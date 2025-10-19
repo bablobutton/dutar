@@ -148,7 +148,8 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
             None
         }
         Message::Previous => {
-            todo!();
+            controls::play_previous(model);
+            None
         }
     };
     debug!("Updated state [{:?}]", model.state);

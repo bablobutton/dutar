@@ -35,6 +35,19 @@ impl SongQueue {
         self.current_idx %= self.queue.len();
     }
 
+    pub fn retreat(&mut self) {
+        if self.queue.is_empty() {
+            return;
+        }
+
+        if self.current_idx == 0 {
+            // loop forward
+            self.current_idx = self.queue.len() - 1;
+        } else {
+            self.current_idx -= 1;
+        }
+    }
+
     pub fn get_current_song_path(&self) -> Option<&Path> {
         let current_song = self.queue.get(self.current_idx);
         if let Some(song) = current_song {

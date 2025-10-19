@@ -44,11 +44,13 @@ fn load_and_play(model: &mut Model) -> Result<()> {
     let file = File::open(path)?;
     let reader = BufReader::with_capacity(1024 * 1024 * 5, file);
     let source = get_source(reader).ok_or_eyre("Failed to decode")?;
+    model.audio.sink.clear(); // clear from current sounds (and callbacks)
     model.audio.sink.append(source);
     model
         .audio
         .sink
         .append(create_callback_source_play_next(model.channel.tx.clone()));
+    model.audio.sink.play(); // because clear() paused
     Ok(())
 }
 
@@ -70,6 +72,13 @@ pub fn play_next(model: &mut Model) {
     model.queue.advance();
     if let Err(e) = load_and_play(model) {
         error!("Error playing next song: {e}");
+    }
+}
+
+pub fn play_previous(model: &mut Model) {
+    model.queue.retreat();
+    if let Err(e) = load_and_play(model) {
+        error!("Error playing previous song: {e}");
     }
 }
 
