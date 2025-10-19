@@ -7,13 +7,17 @@ mod utils;
 
 use color_eyre::Result;
 use log::debug;
+use queue::SongQueue;
 use ratatui::crossterm::event;
 use rodio::{OutputStream, Sink};
+use std::sync::mpsc::{Receiver, Sender, channel};
 use std::time::Duration;
 
 struct Model {
     state: State,
-    player: Player,
+    audio: Audio,
+    queue: SongQueue,
+    channel: Channel,
 }
 
 impl Model {
@@ -21,17 +25,26 @@ impl Model {
         let stream =
             rodio::OutputStreamBuilder::open_default_stream().expect("open default audio stream");
         let sink = rodio::Sink::connect_new(stream.mixer());
+        let (tx, rx): (Sender<Message>, Receiver<Message>) = channel();
         Model {
             state: State::Init,
-            player: Player {
+            audio: Audio {
                 _stream: stream, // it's unused, but we can't have it dropped
                 sink: sink,
             },
+            queue: SongQueue::new(),
+            channel: Channel { rx, tx },
         }
     }
 }
 
-struct Player {
+// channel for sending and receiving events
+struct Channel {
+    rx: Receiver<Message>,
+    tx: Sender<Message>,
+}
+
+struct Audio {
     _stream: OutputStream,
     sink: Sink,
 }
@@ -79,8 +92,17 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn handle_event(_model: &Model) -> Result<Option<Message>> {
-    if event::poll(Duration::from_millis(100))? {
+fn handle_event(model: &Model) -> Result<Option<Message>> {
+    let channel_msg = model.channel.rx.recv_timeout(Duration::from_millis(10));
+    match channel_msg {
+        Ok(msg) => {
+            debug!("Received message over channel: {msg:?}");
+            return Ok(Some(msg));
+        }
+        Err(_) => {}
+    }
+
+    if event::poll(Duration::from_millis(90))? {
         if let event::Event::Key(key) = event::read()? {
             if key.kind == event::KeyEventKind::Press {
                 return Ok(handle_key(key));
@@ -122,7 +144,8 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
             None
         }
         Message::Next => {
-            todo!();
+            controls::play_next(model);
+            None
         }
         Message::Previous => {
             todo!();

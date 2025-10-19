@@ -2,44 +2,49 @@ use crate::utils::for_each_subdir;
 use dirs::{audio_dir, home_dir};
 use infer::get_from_path;
 use log::{debug, error};
-use std::collections::LinkedList;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 pub struct SongQueue {
-    list: LinkedList<Song>,
+    queue: Vec<Song>,
+    current_idx: usize,
 }
 
-struct Song {
+pub struct Song {
     path: PathBuf,
 }
 
 impl SongQueue {
-    pub fn push_back() {
-        todo!();
-    }
-    pub fn pop_front() {
-        todo!();
-    }
-    pub fn clear() {
-        todo!();
-    }
-}
+    // pub fn remove() {
+    //     todo!();
+    // }
+    //
+    // pub fn clear(&mut self) {
+    //     self.current_idx = 0;
+    //     self.queue.clear()
+    // }
 
-impl Default for SongQueue {
-    /// Initialize with all songs in the default directory.
-    ///  for each file in <user's auido dir>/dutar/ (create such dir if doesn't exist)
-    ///      if valid audio file, create Song object and initialize with the file
-    ///      push the Song to the list
-    ///
-    /// User's directory per platform:
-    /// | Platform | Value                  | Example                    |
-    /// |----------|------------------------|----------------------------|
-    /// | Linux    | XDG_MUSIC_DIR/dutar    | /home/alice/Music/dutar    |
-    /// | macOS    | $HOME/Music/dutar      | /Users/Alice/Music/dutar   |
-    /// | Windows  | {FOLDERID_Music}/dutar | C:\Users\Alice\Music/dutar |
-    fn default() -> Self {
-        let mut list = LinkedList::<Song>::new();
+    pub fn advance(&mut self) {
+        if self.queue.is_empty() {
+            return;
+        }
+        self.current_idx += 1;
+        // if no more songs, loop back to first song.
+        // we'll distinguish between stop and loop back
+        // later when we have that feature where user can toggle looping
+        self.current_idx %= self.queue.len();
+    }
+
+    pub fn get_current_song_path(&self) -> Option<&Path> {
+        let current_song = self.queue.get(self.current_idx);
+        if let Some(song) = current_song {
+            return Some(song.path.as_path());
+        }
+        None
+    }
+
+    pub fn new() -> Self {
+        let mut queue = Vec::<Song>::new();
         let mut dir_path = audio_dir().unwrap_or_else(|| {
             let mut dir_path = home_dir().expect("Access to home directory");
             dir_path.push("Music");
@@ -48,7 +53,7 @@ impl Default for SongQueue {
         dir_path.push("dutar");
         if !dir_path.exists() {
             fs::create_dir_all(&dir_path).expect("Create dutar directory");
-            debug!("dutar directory created first time : {dir_path:?}");
+            debug!("Dutar directory created first time : {dir_path:?}");
         }
 
         for_each_subdir(
@@ -62,7 +67,7 @@ impl Default for SongQueue {
                         let song = Song {
                             path: dir_entry.path(),
                         };
-                        list.push_back(song);
+                        queue.push(song);
                     }
                 }
                 Err(error) => {
@@ -71,6 +76,9 @@ impl Default for SongQueue {
             },
         );
 
-        Self { list }
+        Self {
+            queue,
+            current_idx: 0,
+        }
     }
 }
