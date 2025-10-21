@@ -13,6 +13,7 @@ use rodio::{OutputStream, Sink};
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::time::Duration;
 
+// represents a state of the app
 struct Model {
     state: State,
     audio: Audio,
@@ -79,11 +80,15 @@ fn main() -> Result<()> {
     let mut terminal = ratatui::init();
     let mut model = Model::new();
 
+    // main event loop, see ELM https://ratatui.rs/concepts/application-patterns/the-elm-architecture/
     while model.state != State::Done {
         terminal.draw(|frame| tui::render_state(&model, frame))?;
+        // event handler, converts event -> message
         let mut msg = handle_event(&model)?;
 
         while msg.is_some() {
+            // acts on received message and updates the state.
+            // can emit another message and process it too.
             msg = update(&mut model, msg.unwrap());
         }
     }
@@ -92,6 +97,8 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+// this is the main event loop handler, all events including thread communication
+// and I/O should arrive as a message here
 fn handle_event(model: &Model) -> Result<Option<Message>> {
     let channel_msg = model.channel.rx.recv_timeout(Duration::from_millis(10));
     match channel_msg {
@@ -124,6 +131,8 @@ fn handle_key(key: event::KeyEvent) -> Option<Message> {
     }
 }
 
+// this is where state gets updated
+// when adding new state transitions, consider adding tests to solidify them
 fn update(model: &mut Model, msg: Message) -> Option<Message> {
     debug!("Current state [{:?}] <- Message [{:?}]", model.state, msg);
     let ret = match msg {
