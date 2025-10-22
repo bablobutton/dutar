@@ -1,4 +1,4 @@
-use crate::utils::for_each_subdir;
+use crate::utils::{extract_metadata, for_each_subdir};
 use dirs::{audio_dir, home_dir};
 use infer::get_from_path;
 use log::{debug, error};
@@ -10,8 +10,18 @@ pub struct SongQueue {
     current_idx: usize,
 }
 
+#[derive(Debug)]
 pub struct Song {
-    path: PathBuf,
+    pub path: PathBuf,
+    pub metadata: Option<Metadata>,
+}
+
+#[derive(Debug)]
+pub struct Metadata {
+    pub title: String,
+    pub artist: String,
+    pub album: String,
+    pub duration: u64,
 }
 
 impl SongQueue {
@@ -48,10 +58,10 @@ impl SongQueue {
         }
     }
 
-    pub fn get_current_song_path(&self) -> Option<&Path> {
+    pub fn get_current_song(&self) -> Option<&Song> {
         let current_song = self.queue.get(self.current_idx);
         if let Some(song) = current_song {
-            return Some(song.path.as_path());
+            return Some(song);
         }
         None
     }
@@ -79,6 +89,7 @@ impl SongQueue {
                     {
                         let song = Song {
                             path: dir_entry.path(),
+                            metadata: extract_metadata(dir_entry.path().as_path()),
                         };
                         queue.push(song);
                     }

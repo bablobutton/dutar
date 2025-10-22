@@ -36,12 +36,12 @@ fn get_source(reader: BufReader<File>) -> Option<Decoder<BufReader<File>>> {
 }
 
 fn load_and_play(model: &mut Model) -> Result<()> {
-    let path = model
+    let song = model
         .queue
-        .get_current_song_path()
+        .get_current_song()
         .ok_or_eyre("No song to play")?;
-    debug!("Loading from {path:?} and playing");
-    let file = File::open(path)?;
+    debug!("Loading from {} and playing", song.path.display());
+    let file = File::open(&song.path.as_path())?;
     let reader = BufReader::with_capacity(1024 * 1024 * 5, file);
     let source = get_source(reader).ok_or_eyre("Failed to decode")?;
     model.audio.sink.clear(); // clear from current sounds (and callbacks)
