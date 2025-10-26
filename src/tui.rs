@@ -1,4 +1,4 @@
-use crate::{Model, PlayerState, State};
+use crate::Model;
 use ratatui::layout::Rect;
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::Color;

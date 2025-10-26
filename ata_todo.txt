@@ -1,4 +1,0 @@
-* Bug: play one song and delete another song from dutar dir. Need to detect when the song is missing and delete it from queue.
-* Somewhat nice UI.
-...
-?. P2P network
