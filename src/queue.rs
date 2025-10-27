@@ -68,15 +68,14 @@ impl SongQueue {
 
     pub fn new() -> Self {
         let mut queue = Vec::<Song>::new();
-        let mut dir_path = audio_dir().unwrap_or_else(|| {
+        let dir_path = audio_dir().unwrap_or_else(|| {
             let mut dir_path = home_dir().expect("Access to home directory");
             dir_path.push("Music");
             dir_path
         });
-        dir_path.push("dutar");
         if !dir_path.exists() {
-            fs::create_dir_all(&dir_path).expect("Create dutar directory");
-            debug!("Dutar directory created first time : {dir_path:?}");
+            fs::create_dir_all(&dir_path).expect("Create ~/Music directory");
+            debug!("Music directory created first time : {dir_path:?}");
         }
 
         for_each_subdir(
