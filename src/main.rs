@@ -1,4 +1,3 @@
-mod audio;
 mod controls;
 mod logging;
 mod queue;
@@ -6,16 +5,18 @@ mod tui;
 mod utils;
 
 use color_eyre::Result;
-use log::debug;
+use log::{debug, error};
 use queue::SongQueue;
 use ratatui::crossterm::event;
 use rodio::{OutputStream, Sink};
-use std::sync::mpsc::{Receiver, Sender, channel};
+use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender, channel};
 use std::time::Duration;
 
 // represents a state of the app
 struct Model {
-    state: State,
+    app_state: AppState,  // "main" state of the app for music controls
+    popup: Option<Popup>, // popup state, if any. Ex: command bar, search bar
+    ui_state: UIState,    // TODO: state of UI, will need this when have more than one screen
     audio: Audio,
     queue: SongQueue,
     channel: Channel,
@@ -28,10 +29,12 @@ impl Model {
         let sink = rodio::Sink::connect_new(stream.mixer());
         let (tx, rx): (Sender<Message>, Receiver<Message>) = channel();
         Model {
-            state: State::Init,
+            app_state: AppState::Init,
+            ui_state: UIState::Main,
+            popup: None,
             audio: Audio {
                 _stream: stream, // it's unused, but we can't have it dropped
-                sink: sink,
+                sink,
             },
             queue: SongQueue::new(),
             channel: Channel { rx, tx },
@@ -51,7 +54,7 @@ struct Audio {
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
-enum State {
+enum AppState {
     #[default]
     Init,
     Player(PlayerState), // nested enum for playing screen
@@ -64,6 +67,29 @@ enum PlayerState {
     Paused,
 }
 
+#[derive(Debug, PartialEq)]
+struct BarState {
+    input: String,
+    bar_type: BarType,
+}
+
+#[derive(Debug, PartialEq)]
+enum Popup {
+    Bar(BarState),
+    Hint,
+}
+
+#[derive(Debug, PartialEq)]
+enum BarType {
+    Command,
+    // Search,
+}
+
+#[derive(Debug, PartialEq)]
+enum UIState {
+    Main,
+}
+
 #[derive(PartialEq, Debug)]
 enum Message {
     TogglePlay,
@@ -72,6 +98,10 @@ enum Message {
     Next,
     Previous,
     Quit,
+    OpenCommandBar,
+    ClosePopup,
+    PopupSubmit,
+    SendCharToPopup(char),
 }
 
 fn main() -> Result<()> {
@@ -81,8 +111,8 @@ fn main() -> Result<()> {
     let mut model = Model::new();
 
     // main event loop, see ELM https://ratatui.rs/concepts/application-patterns/the-elm-architecture/
-    while model.state != State::Done {
-        terminal.draw(|frame| tui::render_state(&model, frame))?;
+    while model.app_state != AppState::Done {
+        terminal.draw(|frame| tui::render(&model, frame))?;
         // event handler, converts event -> message
         let mut msg = handle_event(&model)?;
 
@@ -106,42 +136,55 @@ fn handle_event(model: &Model) -> Result<Option<Message>> {
             debug!("Received message over channel: {msg:?}");
             return Ok(Some(msg));
         }
-        Err(_) => {}
+        Err(RecvTimeoutError::Timeout) => {}
+        Err(err) => error!("Error receiving channel message: {err}"),
     }
 
     if event::poll(Duration::from_millis(90))? {
         if let event::Event::Key(key) = event::read()? {
             if key.kind == event::KeyEventKind::Press {
-                return Ok(handle_key(key));
+                return Ok(handle_key(key, model));
             }
         }
     }
     Ok(None)
 }
 
-fn handle_key(key: event::KeyEvent) -> Option<Message> {
-    match key.code {
-        event::KeyCode::Char('k') => Some(Message::TogglePlay),
-        event::KeyCode::Char('q') => Some(Message::Quit),
-        event::KeyCode::Char('l') => Some(Message::SkipForward),
-        event::KeyCode::Char('j') => Some(Message::SkipBack),
-        event::KeyCode::Char('n') => Some(Message::Next),
-        event::KeyCode::Char('p') => Some(Message::Previous),
-        _ => None,
+fn handle_key(key: event::KeyEvent, model: &Model) -> Option<Message> {
+    match &model.popup {
+        Some(_) => match key.code {
+            event::KeyCode::Enter => Some(Message::PopupSubmit),
+            event::KeyCode::Esc => Some(Message::ClosePopup),
+            event::KeyCode::Char(c) => Some(Message::SendCharToPopup(c)),
+            _ => None,
+        },
+        None => match key.code {
+            event::KeyCode::Char('k') => Some(Message::TogglePlay),
+            event::KeyCode::Char('q') => Some(Message::Quit),
+            event::KeyCode::Char('l') => Some(Message::SkipForward),
+            event::KeyCode::Char('j') => Some(Message::SkipBack),
+            event::KeyCode::Char('n') => Some(Message::Next),
+            event::KeyCode::Char('p') => Some(Message::Previous),
+            event::KeyCode::Char(':') => Some(Message::OpenCommandBar),
+            _ => None,
+        },
     }
 }
 
 // this is where state gets updated
 // when adding new state transitions, consider adding tests to solidify them
 fn update(model: &mut Model, msg: Message) -> Option<Message> {
-    debug!("Current state [{:?}] <- Message [{:?}]", model.state, msg);
+    debug!(
+        "Current playback state [{:?}], popup [{:?}] <- Message [{:?}]",
+        model.app_state, model.popup, msg
+    );
     let ret = match msg {
         Message::TogglePlay => {
             controls::toggle_play(model);
             None
         }
         Message::Quit => {
-            model.state = State::Done;
+            model.app_state = AppState::Done;
             None
         }
         Message::SkipForward => {
@@ -160,8 +203,45 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
             controls::play_previous(model);
             None
         }
+        Message::OpenCommandBar => {
+            debug_assert!(
+                model.popup.is_none(),
+                "OpenCommandBar shouldn't be sent if there's a popup open"
+            );
+            if model.popup == None {
+                model.popup = Some(Popup::Bar(BarState {
+                    input: String::with_capacity(32),
+                    bar_type: BarType::Command,
+                }));
+            }
+            None
+        }
+        Message::ClosePopup => {
+            debug_assert!(
+                model.popup.is_some(),
+                "ClosePopup shouldn't be sent if there's no popup"
+            );
+            model.popup = None;
+            None
+        }
+        Message::PopupSubmit => {
+            todo!();
+        }
+        Message::SendCharToPopup(c) => {
+            debug_assert!(
+                matches!(model.popup, Some(Popup::Bar(_))),
+                "SendCharToPopup shouldn't be sent if there's no bar open"
+            );
+            if let Some(Popup::Bar(bar_state)) = &mut model.popup {
+                bar_state.input.push(c)
+            };
+            None
+        }
     };
-    debug!("Updated state [{:?}]", model.state);
+    debug!(
+        "Updated state [{:?}], popup [{:?}]",
+        model.app_state, model.popup
+    );
     ret
 }
 
@@ -173,26 +253,26 @@ mod tests {
     // state transitions (not all but the important ones)
     fn test_update() {
         let mut model = Model::new();
-        assert_eq!(model.state, State::Init);
+        assert_eq!(model.app_state, AppState::Init);
 
         // Init -> Playing
         let result = update(&mut model, Message::TogglePlay);
         assert_eq!(result, None);
-        assert_eq!(model.state, State::Player(PlayerState::Playing));
+        assert_eq!(model.app_state, AppState::Player(PlayerState::Playing));
 
         // Playing -> Paused
         let result = update(&mut model, Message::TogglePlay);
         assert_eq!(result, None);
-        assert_eq!(model.state, State::Player(PlayerState::Paused));
+        assert_eq!(model.app_state, AppState::Player(PlayerState::Paused));
 
         // Paused -> Playing
         let result = update(&mut model, Message::TogglePlay);
         assert_eq!(result, None);
-        assert_eq!(model.state, State::Player(PlayerState::Playing));
+        assert_eq!(model.app_state, AppState::Player(PlayerState::Playing));
 
         // Playing -> Quit
         let result = update(&mut model, Message::Quit);
         assert_eq!(result, None);
-        assert_eq!(model.state, State::Done);
+        assert_eq!(model.app_state, AppState::Done);
     }
 }

@@ -3,7 +3,7 @@ use dirs::{audio_dir, home_dir};
 use infer::get_from_path;
 use log::{debug, error};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 pub struct SongQueue {
     queue: Vec<Song>,

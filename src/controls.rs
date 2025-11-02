@@ -1,4 +1,4 @@
-use crate::{Message, Model, PlayerState, State};
+use crate::{AppState, Message, Model, PlayerState};
 use color_eyre::{Result, eyre::OptionExt};
 use log::{debug, error, info};
 use rodio::{Decoder, decoder::DecoderBuilder, source::EmptyCallback};
@@ -8,20 +8,20 @@ use std::sync::mpsc::Sender;
 use std::time::Duration;
 
 pub fn toggle_play(model: &mut Model) {
-    match model.state {
-        State::Init => match load_and_play(model) {
-            Ok(()) => model.state = State::Player(PlayerState::Playing),
+    match model.app_state {
+        AppState::Init => match load_and_play(model) {
+            Ok(()) => model.app_state = AppState::Player(PlayerState::Playing),
             Err(e) => {
                 error!("Error loading a song: {e}");
             }
         },
-        State::Player(PlayerState::Paused) => {
+        AppState::Player(PlayerState::Paused) => {
             model.audio.sink.play();
-            model.state = State::Player(PlayerState::Playing)
+            model.app_state = AppState::Player(PlayerState::Playing)
         }
-        State::Player(PlayerState::Playing) => {
+        AppState::Player(PlayerState::Playing) => {
             model.audio.sink.pause();
-            model.state = State::Player(PlayerState::Paused)
+            model.app_state = AppState::Player(PlayerState::Paused)
         }
         _ => {}
     }
@@ -41,7 +41,7 @@ fn load_and_play(model: &mut Model) -> Result<()> {
         .get_current_song()
         .ok_or_eyre("No song to play")?;
     debug!("Loading from {} and playing", song.path.display());
-    let file = File::open(&song.path.as_path())?;
+    let file = File::open(song.path.as_path())?;
     let reader = BufReader::with_capacity(1024 * 1024 * 5, file);
     let source = get_source(reader).ok_or_eyre("Failed to decode")?;
     model.audio.sink.clear(); // clear from current sounds (and callbacks)
@@ -83,8 +83,8 @@ pub fn play_previous(model: &mut Model) {
 }
 
 pub fn forward_seconds(model: &mut Model, seconds: u64) {
-    if model.state == State::Player(PlayerState::Playing)
-        || model.state == State::Player(PlayerState::Paused)
+    if model.app_state == AppState::Player(PlayerState::Playing)
+        || model.app_state == AppState::Player(PlayerState::Paused)
     {
         let sink = &model.audio.sink;
         let curr_duration = sink.get_pos();
@@ -98,8 +98,8 @@ pub fn forward_seconds(model: &mut Model, seconds: u64) {
 }
 
 pub fn backward_seconds(model: &mut Model, seconds: u64) {
-    if model.state == State::Player(PlayerState::Playing)
-        || model.state == State::Player(PlayerState::Paused)
+    if model.app_state == AppState::Player(PlayerState::Playing)
+        || model.app_state == AppState::Player(PlayerState::Paused)
     {
         let sink = &model.audio.sink;
         let curr_duration = sink.get_pos();
