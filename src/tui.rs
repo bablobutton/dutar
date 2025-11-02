@@ -9,6 +9,7 @@ use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::Color;
 use ratatui::style::Style;
 use ratatui::text::{Line, Text};
+use ratatui::widgets::Gauge;
 use ratatui::{
     Frame,
     style::Stylize,
@@ -19,7 +20,11 @@ pub fn render(model: &Model, frame: &mut Frame) {
     // chunks divide main UI into regions into which we'll put things
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Fill(2), Constraint::Fill(1)])
+        .constraints([
+            Constraint::Fill(2),
+            Constraint::Fill(1),
+            Constraint::Percentage(10), // Progress bar
+        ])
         .split(frame.area());
 
     render_play_text(model, frame, chunks[0]);
@@ -28,6 +33,7 @@ pub fn render(model: &Model, frame: &mut Frame) {
     // render popus (they don't need chunks)
     render_bar_popup(model, frame);
     render_hints_popup(model, frame);
+    render_progress(model, frame, chunks[2]);
 }
 
 fn render_play_text(model: &Model, frame: &mut Frame, chunk: Rect) {
@@ -72,4 +78,36 @@ fn render_hints(frame: &mut Frame, chunk: Rect) {
         .direction(ListDirection::TopToBottom);
 
     frame.render_widget(list, chunk);
+}
+
+fn render_progress(model: &Model, frame: &mut Frame, chunk: Rect) {
+    let sink = &model.audio.sink;
+    let current_pos = sink.get_pos();
+    let secs = current_pos.as_secs();
+
+    let total_duration = model
+        .queue
+        .get_current_song()
+        .and_then(|song| song.metadata.as_ref())
+        .map(|meta| meta.duration)
+        .unwrap_or(0);
+
+    let ratio = if total_duration > 0 {
+        (secs as f64) / (total_duration as f64)
+    } else {
+        0.0
+    };
+    let gauge = Gauge::default()
+        .block(Block::default().borders(Borders::ALL).title("Progress"))
+        .ratio(ratio)
+        .style(Style::default().fg(Color::Green))
+        .label(format!(
+            "{:02}:{:02} / {:02}:{:02}",
+            secs / 60,
+            secs % 60,
+            total_duration / 60,
+            total_duration % 60
+        ));
+
+    frame.render_widget(gauge, chunk);
 }
