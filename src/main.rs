@@ -102,6 +102,8 @@ enum Message {
     ClosePopup,
     PopupSubmit,
     SendCharToPopup(char),
+    VolumeUp,
+    VolumeDown,
 }
 
 fn main() -> Result<()> {
@@ -166,6 +168,8 @@ fn handle_key(key: event::KeyEvent, model: &Model) -> Option<Message> {
             event::KeyCode::Char('n') => Some(Message::Next),
             event::KeyCode::Char('p') => Some(Message::Previous),
             event::KeyCode::Char(':') => Some(Message::OpenCommandBar),
+            event::KeyCode::Char('=') => Some(Message::VolumeUp),
+            event::KeyCode::Char('-') => Some(Message::VolumeDown),
             _ => None,
         },
     }
@@ -201,6 +205,14 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
         }
         Message::Previous => {
             controls::play_previous(model);
+            None
+        }
+        Message::VolumeUp => {
+            controls::volume_up(model, 0.05);
+            None
+        }
+        Message::VolumeDown => {
+            controls::volume_down(model, 0.05);
             None
         }
         Message::OpenCommandBar => {

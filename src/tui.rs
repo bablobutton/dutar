@@ -21,19 +21,21 @@ pub fn render(model: &Model, frame: &mut Frame) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Fill(2),
-            Constraint::Fill(1),
+            Constraint::Fill(2),        // Play text
+            Constraint::Fill(1),        // Hints
+            Constraint::Percentage(7),  // Volume
             Constraint::Percentage(10), // Progress bar
         ])
         .split(frame.area());
 
     render_play_text(model, frame, chunks[0]);
     render_hints(frame, chunks[1]);
+    render_volume(model, frame, chunks[2]);
+    render_progress(model, frame, chunks[3]);
 
     // render popus (they don't need chunks)
     render_bar_popup(model, frame);
     render_hints_popup(model, frame);
-    render_progress(model, frame, chunks[2]);
 }
 
 fn render_play_text(model: &Model, frame: &mut Frame, chunk: Rect) {
@@ -108,6 +110,21 @@ fn render_progress(model: &Model, frame: &mut Frame, chunk: Rect) {
             total_duration / 60,
             total_duration % 60
         ));
+
+    frame.render_widget(gauge, chunk);
+}
+
+fn render_volume(model: &Model, frame: &mut Frame, chunk: Rect) {
+    let sink = &model.audio.sink;
+    let max_vol = 1.0;
+    let curr_vol = sink.volume();
+
+    let ratio = (curr_vol as f64) / (max_vol as f64);
+    let gauge = Gauge::default()
+        .block(Block::default().borders(Borders::ALL).title("Volume"))
+        .ratio(ratio)
+        .style(Style::default().fg(Color::Green))
+        .label(format!("{curr_vol:.2}",));
 
     frame.render_widget(gauge, chunk);
 }
