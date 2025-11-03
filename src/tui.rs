@@ -13,7 +13,8 @@ use ratatui::widgets::Gauge;
 use ratatui::{
     Frame,
     style::Stylize,
-    widgets::{Block, Borders, List, ListDirection, Paragraph},
+    text::Span,
+    widgets::{Block, Borders, Cell, List, ListDirection, Paragraph, Row, Table},
 };
 
 pub fn render(model: &Model, frame: &mut Frame) {
@@ -41,29 +42,53 @@ pub fn render(model: &Model, frame: &mut Frame) {
 fn render_play_text(model: &Model, frame: &mut Frame, chunk: Rect) {
     let block = Block::default()
         .borders(Borders::ALL)
+        .title("Now Playing")
         .style(Style::default());
 
-    let mut lines = vec![Line::styled(
-        format!("State: {:?}", model.app_state),
-        Style::default().fg(Color::Green),
-    )];
-
     let current_song = model.queue.get_current_song();
-    let current_song_str = match current_song {
-        Some(song) => format!("{song:#?}"),
-        None => "None".to_string(),
+
+    let rows: Vec<Row> = if let Some(song) = current_song {
+        if let Some(meta) = &song.metadata {
+            vec![Row::new(vec![
+                Cell::from(meta.artist.clone()),
+                Cell::from(meta.title.clone()),
+                Cell::from(meta.album.clone()),
+                Cell::from(format!(
+                    "{:02}:{:02}",
+                    meta.duration / 60,
+                    meta.duration % 60
+                )),
+            ])]
+        } else {
+            vec![Row::new(vec![Cell::from("No metadata found")])]
+        }
+    } else {
+        vec![Row::new(vec![Cell::from("No song playing")])]
     };
 
-    lines.extend(
-        current_song_str
-            .lines()
-            .map(|line| Line::styled(line.to_string(), Style::default().fg(Color::Green))),
-    );
+    let header = Row::new(vec![
+        Cell::from(Span::styled("Artist", Style::default().fg(Color::Yellow))),
+        Cell::from(Span::styled("Title", Style::default().fg(Color::Yellow))),
+        Cell::from(Span::styled("Album", Style::default().fg(Color::Yellow))),
+        Cell::from(Span::styled("Duration", Style::default().fg(Color::Yellow))),
+    ])
+    .style(Style::default().fg(Color::White));
 
-    let paragraph = Paragraph::new(Text::from(lines)).block(block);
-    frame.render_widget(paragraph, chunk);
+    let table = Table::new(
+        rows,
+        [
+            Constraint::Percentage(25),
+            Constraint::Percentage(35),
+            Constraint::Percentage(30),
+            Constraint::Length(8),
+        ],
+    )
+    .header(header)
+    .block(block)
+    .style(Style::default().fg(Color::Green));
+
+    frame.render_widget(table, chunk);
 }
-
 fn render_hints(frame: &mut Frame, chunk: Rect) {
     let block = Block::bordered().title("Hints");
 
