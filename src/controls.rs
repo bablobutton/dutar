@@ -6,6 +6,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::sync::mpsc::Sender;
 use std::time::Duration;
+use tracing::field::debug;
 
 pub fn toggle_play(model: &mut Model) {
     match model.app_state {
@@ -110,4 +111,19 @@ pub fn backward_seconds(model: &mut Model, seconds: u64) {
         }
         debug!("Backward {seconds} seconds, current_duration={curr_duration:?}");
     }
+}
+
+pub fn volume_up(model: &mut Model, val: f32) {
+    let sink = &model.audio.sink;
+    let curr_vol = sink.volume();
+    let new_vol = (curr_vol + val).clamp(0.0, 1.0);
+    sink.set_volume(new_vol);
+    debug("Volume increased to {new_vol:.2}");
+}
+pub fn volume_down(model: &mut Model, val: f32) {
+    let sink = &model.audio.sink;
+    let curr_vol = sink.volume();
+    let new_vol = (curr_vol - val).clamp(0.0, 1.0);
+    sink.set_volume(new_vol);
+    debug("Volume decreased to {new_vol:.2}");
 }
