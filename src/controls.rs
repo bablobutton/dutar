@@ -1,4 +1,4 @@
-use crate::{AppState, Message, Model, PlayerState};
+use crate::{Message, Model};
 use color_eyre::{Result, eyre::OptionExt};
 use log::{debug, error, info};
 use rodio::{Decoder, decoder::DecoderBuilder, source::EmptyCallback};
@@ -7,24 +7,17 @@ use std::io::BufReader;
 use std::sync::mpsc::Sender;
 use std::time::Duration;
 
-pub fn toggle_play(model: &mut Model) {
-    match model.app_state {
-        AppState::Init => match load_and_play(model) {
-            Ok(()) => model.app_state = AppState::Player(PlayerState::Playing),
-            Err(e) => {
-                error!("Error loading a song: {e}");
-            }
-        },
-        AppState::Player(PlayerState::Paused) => {
-            model.audio.sink.play();
-            model.app_state = AppState::Player(PlayerState::Playing)
-        }
-        AppState::Player(PlayerState::Playing) => {
-            model.audio.sink.pause();
-            model.app_state = AppState::Player(PlayerState::Paused)
-        }
-        _ => {}
+pub fn play(model: &mut Model) -> Result<()> {
+    if model.audio.sink.len() > 0 {
+        model.audio.sink.play();
+    } else {
+        load_and_play(model)?;
     }
+    Ok(())
+}
+
+pub fn pause(model: &mut Model) {
+    model.audio.sink.pause();
 }
 
 fn get_source(reader: BufReader<File>) -> Option<Decoder<BufReader<File>>> {
@@ -83,33 +76,25 @@ pub fn play_previous(model: &mut Model) {
 }
 
 pub fn forward_seconds(model: &mut Model, seconds: u64) {
-    if model.app_state == AppState::Player(PlayerState::Playing)
-        || model.app_state == AppState::Player(PlayerState::Paused)
-    {
-        let sink = &model.audio.sink;
-        let curr_duration = sink.get_pos();
-        let skip_seconds = Duration::from_secs(seconds);
-        let curr_duration = curr_duration.saturating_add(skip_seconds);
-        if let Err(e) = sink.try_seek(curr_duration) {
-            error!("{e}");
-        }
-        debug!("Forward {seconds} seconds, current_duration={curr_duration:?}");
+    let sink = &model.audio.sink;
+    let curr_duration = sink.get_pos();
+    let skip_seconds = Duration::from_secs(seconds);
+    let curr_duration = curr_duration.saturating_add(skip_seconds);
+    if let Err(e) = sink.try_seek(curr_duration) {
+        error!("{e}");
     }
+    debug!("Forward {seconds} seconds, current_duration={curr_duration:?}");
 }
 
 pub fn backward_seconds(model: &mut Model, seconds: u64) {
-    if model.app_state == AppState::Player(PlayerState::Playing)
-        || model.app_state == AppState::Player(PlayerState::Paused)
-    {
-        let sink = &model.audio.sink;
-        let curr_duration = sink.get_pos();
-        let skip_seconds = Duration::from_secs(seconds);
-        let curr_duration = curr_duration.saturating_sub(skip_seconds);
-        if let Err(e) = sink.try_seek(curr_duration) {
-            error!("{e}");
-        }
-        debug!("Backward {seconds} seconds, current_duration={curr_duration:?}");
+    let sink = &model.audio.sink;
+    let curr_duration = sink.get_pos();
+    let skip_seconds = Duration::from_secs(seconds);
+    let curr_duration = curr_duration.saturating_sub(skip_seconds);
+    if let Err(e) = sink.try_seek(curr_duration) {
+        error!("{e}");
     }
+    debug!("Backward {seconds} seconds, current_duration={curr_duration:?}");
 }
 
 pub fn volume_up(model: &mut Model, val: f32) {
@@ -119,10 +104,19 @@ pub fn volume_up(model: &mut Model, val: f32) {
     sink.set_volume(new_vol);
     debug!("Volume increased to {new_vol:.2}");
 }
+
 pub fn volume_down(model: &mut Model, val: f32) {
     let sink = &model.audio.sink;
     let curr_vol = sink.volume();
     let new_vol = (curr_vol - val).clamp(0.0, 1.0);
     sink.set_volume(new_vol);
     debug!("Volume decreased to {new_vol:.2}");
+}
+
+pub fn get_volume(model: &mut Model) -> f32 {
+    model.audio.sink.volume()
+}
+
+pub fn set_volume(model: &mut Model, val: f32) {
+    model.audio.sink.set_volume(val);
 }

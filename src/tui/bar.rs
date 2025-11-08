@@ -1,9 +1,11 @@
 // this should render all bars
 
 use crate::{BarType, Model, Popup};
+use log::{debug, error};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Style};
+use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 
 pub fn render_bar_popup(model: &Model, frame: &mut Frame) {
@@ -18,32 +20,46 @@ pub fn render_bar_popup(model: &Model, frame: &mut Frame) {
 }
 
 fn render_command_bar(model: &Model, frame: &mut Frame) {
-    let block = Block::default()
-        .title("Some title")
-        .borders(Borders::ALL)
-        .style(Style::default().bg(Color::DarkGray));
+    let Some(Popup::Bar(command_bar)) = &model.popup else {
+        unreachable!();
+    };
 
-    // let area = centered_bar(frame.area());
+    let input = &command_bar.input;
+
+    let block = Block::default()
+        .borders(Borders::BOTTOM)
+        .style(Style::default());
+
+    let paragraph = Paragraph::new(Line::from(vec![
+        Span::from("   > "),
+        Span::styled(input.clone(), Style::default().fg(Color::White)),
+    ]))
+    .block(block);
+
+    let area = bar_area(frame.area());
+    frame.render_widget(paragraph, area);
 }
 
-// fn centered_bar(r: Rect) -> Rect {
-//     // Create vertical layout with popup centered between top and bottom margins
-//     let popup_layout = Layout::default()
-//         .direction(Direction::Vertical)
-//         .constraints([
-//             Constraint::Percentage((100 - percent_y) / 2),  // Top margin
-//             Constraint::Percentage(percent_y),              // Popup height
-//             Constraint::Percentage((100 - percent_y) / 2),  // Bottom margin
-//         ])
-//         .split(r);
-//
-//     // Create horizontal layout with popup centered between left and right margins
-//     Layout::default()
-//         .direction(Direction::Horizontal)
-//         .constraints([
-//             Constraint::Percentage((100 - percent_x) / 2),  // Left margin
-//             Constraint::Percentage(percent_x),              // Popup width
-//             Constraint::Percentage((100 - percent_x) / 2),  // Right margin
-//         ])
-//         .split(popup_layout[1])[1]  // Take the middle section (index 1)
-// }
+fn bar_area(r: Rect) -> Rect {
+    // Create vertical layout with popup centered between top and bottom margins
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Fill(1),
+            Constraint::Length(2),
+            Constraint::Fill(3),
+        ])
+        .split(r);
+
+    // Create horizontal layout with popup centered between left and right margins
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Ratio(1, 4),
+            Constraint::Fill(1),
+            Constraint::Max(70),
+            Constraint::Fill(1),
+            Constraint::Ratio(1, 4),
+        ])
+        .split(popup_layout[1])[2] // Take the middle section
+}

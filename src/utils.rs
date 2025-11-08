@@ -24,7 +24,7 @@ where
                 }
             }
             Err(error) => {
-                error!("{error}");
+                error!("Error traversing directories: {error}");
             }
         }
     }

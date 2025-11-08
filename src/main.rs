@@ -5,7 +5,7 @@ mod tui;
 mod utils;
 
 use color_eyre::Result;
-use log::{debug, error};
+use log::{debug, error, warn};
 use queue::SongQueue;
 use ratatui::crossterm::event;
 use rodio::{OutputStream, Sink};
@@ -14,9 +14,10 @@ use std::time::Duration;
 
 // represents a state of the app
 struct Model {
-    app_state: AppState,  // "main" state of the app for music controls
-    popup: Option<Popup>, // popup state, if any. Ex: command bar, search bar
-    ui_state: UIState,    // TODO: state of UI, will need this when have more than one screen
+    app_state: AppState,     // "main" state of the app for music controls
+    popup: Option<Popup>,    // popup state, if any. Ex: command bar, search bar
+    ui_state: UIState,       // TODO: state of UI, will need this when have more than one screen
+    saved_state: SavedState, // storing whatever we might need to restore later
     audio: Audio,
     queue: SongQueue,
     channel: Channel,
@@ -31,6 +32,7 @@ impl Model {
         Model {
             app_state: AppState::Init,
             ui_state: UIState::Main,
+            saved_state: SavedState { volume: 1.0f32 },
             popup: None,
             audio: Audio {
                 _stream: stream, // it's unused, but we can't have it dropped
@@ -59,6 +61,10 @@ enum AppState {
     Init,
     Player(PlayerState), // nested enum for playing screen
     Done,
+}
+
+struct SavedState {
+    volume: f32,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -93,6 +99,8 @@ enum UIState {
 #[derive(PartialEq, Debug)]
 enum Message {
     TogglePlay,
+    Play,
+    Pause,
     SkipForward,
     SkipBack,
     Next,
@@ -104,6 +112,10 @@ enum Message {
     SendCharToPopup(char),
     VolumeUp,
     VolumeDown,
+    SetVolume(u8),
+    ToggleMute,
+    Mute,
+    Unmute,
     EraseChar,
 }
 
@@ -169,6 +181,7 @@ fn handle_key(key: event::KeyEvent, model: &Model) -> Option<Message> {
             event::KeyCode::Char('j') => Some(Message::SkipBack),
             event::KeyCode::Char('n') => Some(Message::Next),
             event::KeyCode::Char('p') => Some(Message::Previous),
+            event::KeyCode::Char('m') => Some(Message::ToggleMute),
             event::KeyCode::Char(':') => Some(Message::OpenCommandBar),
             event::KeyCode::Char('=') => Some(Message::VolumeUp),
             event::KeyCode::Char('-') => Some(Message::VolumeDown),
@@ -186,7 +199,22 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
     );
     let ret = match msg {
         Message::TogglePlay => {
-            controls::toggle_play(model);
+            if model.app_state == AppState::Player(PlayerState::Playing) {
+                Some(Message::Pause)
+            } else {
+                Some(Message::Play)
+            }
+        }
+        Message::Play => {
+            match controls::play(model) {
+                Ok(()) => model.app_state = AppState::Player(PlayerState::Playing),
+                Err(err) => error!("Error trying to play: {err}"),
+            }
+            None
+        }
+        Message::Pause => {
+            controls::pause(model);
+            model.app_state = AppState::Player(PlayerState::Paused);
             None
         }
         Message::Quit => {
@@ -217,6 +245,33 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
             controls::volume_down(model, 0.05);
             None
         }
+        Message::SetVolume(vol) => {
+            let volf32 = vol.max(100) as f32 / 100.0f32;
+            controls::set_volume(model, volf32);
+            None
+        }
+        Message::ToggleMute => {
+            if controls::get_volume(model) == 0f32 {
+                Some(Message::Unmute)
+            } else {
+                Some(Message::Mute)
+            }
+        }
+        Message::Mute => {
+            let vol = controls::get_volume(model);
+            if vol != 0f32 {
+                model.saved_state.volume = vol;
+                controls::set_volume(model, 0f32);
+            }
+            None
+        }
+        Message::Unmute => {
+            let vol = controls::get_volume(model);
+            if vol == 0f32 {
+                controls::set_volume(model, model.saved_state.volume);
+            }
+            None
+        }
         Message::OpenCommandBar => {
             debug_assert!(
                 model.popup.is_none(),
@@ -224,7 +279,7 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
             );
             if model.popup == None {
                 model.popup = Some(Popup::Bar(BarState {
-                    input: String::with_capacity(32),
+                    input: String::with_capacity(64),
                     bar_type: BarType::Command,
                 }));
             }
@@ -239,7 +294,11 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
             None
         }
         Message::PopupSubmit => {
-            todo!();
+            debug_assert!(
+                model.popup.is_some(),
+                "PopupSubmit shouldn't be sent if there's no popup"
+            );
+            handle_popup_submit(model)
         }
         Message::SendCharToPopup(c) => {
             debug_assert!(
@@ -269,6 +328,67 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
         model.app_state, model.popup, ret
     );
     ret
+}
+
+fn handle_popup_submit(model: &mut Model) -> Option<Message> {
+    let Some(popup) = &model.popup else {
+        unreachable!();
+    };
+
+    let ret = match popup {
+        Popup::Bar(bar) => match bar.bar_type {
+            BarType::Command => handle_command(model),
+            // BarType::Search => handle_search(model),
+        },
+        Popup::Hint => None,
+    };
+
+    model.popup = None;
+    ret
+}
+
+fn handle_command(model: &mut Model) -> Option<Message> {
+    let Some(Popup::Bar(bar)) = &model.popup else {
+        unreachable!();
+    };
+    if bar.bar_type != BarType::Command {
+        unreachable!();
+    }
+
+    let argv: Vec<&str> = bar.input.split_whitespace().collect();
+    if argv.is_empty() {
+        return None;
+    }
+
+    match argv[0] {
+        "next" => Some(Message::Next),
+        "prev" => Some(Message::Previous),
+        "toggleplay" => Some(Message::TogglePlay),
+        "play" => Some(Message::Play),
+        "pause" => Some(Message::Pause),
+        "setvolume" => handle_set_volume(&argv),
+        "quit" | "q" => Some(Message::Quit),
+        "mute" => Some(Message::Mute),
+        "unmute" => Some(Message::Unmute),
+        "togglemute" => Some(Message::ToggleMute),
+        _ => None,
+    }
+}
+
+fn handle_set_volume(argv: &Vec<&str>) -> Option<Message> {
+    if argv.len() >= 2 {
+        let volume: std::result::Result<u8, std::num::ParseIntError> = argv[1].parse();
+        if let Ok(v) = volume {
+            return Some(Message::SetVolume(v));
+        }
+        return None;
+    }
+    warn!("No argument supplied to set volume");
+    None
+}
+
+fn handle_search(model: &mut Model) -> Option<Message> {
+    todo!();
 }
 
 #[cfg(test)]
