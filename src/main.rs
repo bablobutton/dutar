@@ -104,6 +104,7 @@ enum Message {
     SendCharToPopup(char),
     VolumeUp,
     VolumeDown,
+    EraseChar,
 }
 
 fn main() -> Result<()> {
@@ -158,6 +159,7 @@ fn handle_key(key: event::KeyEvent, model: &Model) -> Option<Message> {
             event::KeyCode::Enter => Some(Message::PopupSubmit),
             event::KeyCode::Esc => Some(Message::ClosePopup),
             event::KeyCode::Char(c) => Some(Message::SendCharToPopup(c)),
+            event::KeyCode::Backspace => Some(Message::EraseChar),
             _ => None,
         },
         None => match key.code {
@@ -241,18 +243,30 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
         }
         Message::SendCharToPopup(c) => {
             debug_assert!(
-                matches!(model.popup, Some(Popup::Bar(_))),
-                "SendCharToPopup shouldn't be sent if there's no bar open"
+                model.popup.is_some(),
+                "SendCharToPopup shouldn't be sent if there's no popup open"
             );
             if let Some(Popup::Bar(bar_state)) = &mut model.popup {
                 bar_state.input.push(c)
             };
             None
         }
+        Message::EraseChar => {
+            debug_assert!(
+                matches!(model.popup, Some(Popup::Bar(_))),
+                "EraseChar shouldn't be sent if there's no bar open"
+            );
+            if let Some(Popup::Bar(bar_state)) = &mut model.popup {
+                if !bar_state.input.is_empty() {
+                    bar_state.input.pop();
+                }
+            }
+            None
+        }
     };
     debug!(
-        "Updated state [{:?}], popup [{:?}]",
-        model.app_state, model.popup
+        "Updated state [{:?}], popup [{:?}], Message [{:?}]",
+        model.app_state, model.popup, ret
     );
     ret
 }
@@ -281,6 +295,47 @@ mod tests {
         let result = update(&mut model, Message::TogglePlay);
         assert_eq!(result, None);
         assert_eq!(model.app_state, AppState::Player(PlayerState::Playing));
+
+        // open command bar
+        let result = update(&mut model, Message::OpenCommandBar);
+        assert_eq!(result, None);
+        assert_eq!(model.app_state, AppState::Player(PlayerState::Playing)); // didn't change
+        assert!(matches!(model.popup, Some(Popup::Bar(_))));
+        if let Some(Popup::Bar(bar)) = &model.popup {
+            assert_eq!(bar.bar_type, BarType::Command);
+        } else {
+            assert!(false);
+        }
+
+        // send char to popup
+        let result = update(&mut model, Message::SendCharToPopup('x'));
+        assert_eq!(result, None);
+        assert_eq!(model.app_state, AppState::Player(PlayerState::Playing)); // didn't change
+        assert!(matches!(model.popup, Some(Popup::Bar(_))));
+        if let Some(Popup::Bar(bar)) = &model.popup {
+            assert_eq!(bar.bar_type, BarType::Command);
+            assert_eq!(bar.input, "x");
+        } else {
+            assert!(false);
+        }
+
+        // erase that char
+        let result = update(&mut model, Message::EraseChar);
+        assert_eq!(result, None);
+        assert_eq!(model.app_state, AppState::Player(PlayerState::Playing)); // didn't change
+        assert!(matches!(model.popup, Some(Popup::Bar(_))));
+        if let Some(Popup::Bar(bar)) = &model.popup {
+            assert_eq!(bar.bar_type, BarType::Command);
+            assert!(bar.input.is_empty());
+        } else {
+            assert!(false);
+        }
+
+        // close the popup
+        let result = update(&mut model, Message::ClosePopup);
+        assert_eq!(result, None);
+        assert_eq!(model.app_state, AppState::Player(PlayerState::Playing)); // didn't change
+        assert!(model.popup.is_none());
 
         // Playing -> Quit
         let result = update(&mut model, Message::Quit);
