@@ -8,13 +8,12 @@ use ratatui::layout::Rect;
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::Color;
 use ratatui::style::Style;
-use ratatui::text::{Line, Text};
 use ratatui::widgets::Gauge;
 use ratatui::{
     Frame,
     style::Stylize,
     text::Span,
-    widgets::{Block, Borders, Cell, List, ListDirection, Paragraph, Row, Table},
+    widgets::{Block, Borders, Cell, List, ListDirection, Row, Table},
 };
 
 pub fn render(model: &Model, frame: &mut Frame) {
