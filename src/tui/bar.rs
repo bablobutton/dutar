@@ -1,7 +1,6 @@
 // this should render all bars
 
 use crate::{BarType, Model, Popup};
-use log::{debug, error};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Style};
