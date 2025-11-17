@@ -58,6 +58,18 @@ impl SongQueue {
         }
     }
 
+    pub fn get_current_queue(&self) -> &[Song] {
+        &self.queue
+    }
+
+    pub fn get_current_idx(&self) -> Option<usize> {
+        if self.queue.is_empty() {
+            None
+        } else {
+            Some(self.current_idx)
+        }
+    }
+
     pub fn get_current_song(&self) -> Option<&Song> {
         let current_song = self.queue.get(self.current_idx);
         if let Some(song) = current_song {

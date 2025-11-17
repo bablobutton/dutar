@@ -7,7 +7,9 @@ use hints::render_hints_popup;
 use ratatui::layout::Rect;
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::Color;
+use ratatui::style::Modifier;
 use ratatui::style::Style;
+use ratatui::symbols::block;
 use ratatui::widgets::Gauge;
 use ratatui::{
     Frame,
@@ -39,39 +41,61 @@ pub fn render(model: &Model, frame: &mut Frame) {
 }
 
 fn render_play_text(model: &Model, frame: &mut Frame, chunk: Rect) {
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title("Now Playing")
-        .style(Style::default());
+    let block = Block::default().borders(Borders::ALL).title("Queue");
 
-    let current_song = model.queue.get_current_song();
+    let songs = model.queue.get_current_queue();
+    let current_idx = model.queue.get_current_idx();
 
-    let rows: Vec<Row> = if let Some(song) = current_song {
-        if let Some(meta) = &song.metadata {
-            vec![Row::new(vec![
-                Cell::from(meta.artist.clone()),
-                Cell::from(meta.title.clone()),
-                Cell::from(meta.album.clone()),
-                Cell::from(format!(
-                    "{:02}:{:02}",
-                    meta.duration / 60,
-                    meta.duration % 60
-                )),
-            ])]
-        } else {
-            vec![Row::new(vec![Cell::from("No metadata found")])]
-        }
-    } else {
-        vec![Row::new(vec![Cell::from("No song playing")])]
-    };
+    let rows: Vec<Row> = songs
+        .iter()
+        .enumerate()
+        .map(|(idx, song)| {
+            let (artist, title, album, duration) = if let Some(meta) = &song.metadata {
+                (
+                    meta.artist.clone(),
+                    meta.title.clone(),
+                    meta.album.clone(),
+                    format!("{:02}:{:02}", meta.duration / 60, meta.duration % 60),
+                )
+            } else {
+                (
+                    String::from("<unknown>"),
+                    song.path
+                        .file_name()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("<no name>")
+                        .to_string(),
+                    String::new(),
+                    String::new(),
+                )
+            };
+
+            let mut row = Row::new(vec![
+                Cell::from(artist),
+                Cell::from(title),
+                Cell::from(album),
+                Cell::from(duration),
+            ]);
+
+            if Some(idx) == current_idx {
+                row = row.style(
+                    Style::default()
+                        .bg(Color::Yellow)
+                        .fg(Color::Black)
+                        .add_modifier(Modifier::BOLD),
+                );
+            }
+
+            row
+        })
+        .collect();
 
     let header = Row::new(vec![
         Cell::from(Span::styled("Artist", Style::default().fg(Color::Yellow))),
         Cell::from(Span::styled("Title", Style::default().fg(Color::Yellow))),
         Cell::from(Span::styled("Album", Style::default().fg(Color::Yellow))),
         Cell::from(Span::styled("Duration", Style::default().fg(Color::Yellow))),
-    ])
-    .style(Style::default().fg(Color::White));
+    ]);
 
     let table = Table::new(
         rows,
@@ -83,8 +107,7 @@ fn render_play_text(model: &Model, frame: &mut Frame, chunk: Rect) {
         ],
     )
     .header(header)
-    .block(block)
-    .style(Style::default().fg(Color::Green));
+    .block(block);
 
     frame.render_widget(table, chunk);
 }
@@ -126,7 +149,7 @@ fn render_progress(model: &Model, frame: &mut Frame, chunk: Rect) {
     let gauge = Gauge::default()
         .block(Block::default().borders(Borders::ALL).title("Progress"))
         .ratio(ratio)
-        .style(Style::default().fg(Color::Green))
+        .style(Style::default().fg(Color::Yellow))
         .label(format!(
             "{:02}:{:02} / {:02}:{:02}",
             secs / 60,
@@ -147,7 +170,7 @@ fn render_volume(model: &Model, frame: &mut Frame, chunk: Rect) {
     let gauge = Gauge::default()
         .block(Block::default().borders(Borders::ALL).title("Volume"))
         .ratio(ratio)
-        .style(Style::default().fg(Color::Green))
+        .style(Style::default().fg(Color::Yellow))
         .label(format!("{curr_vol:.2}",));
 
     frame.render_widget(gauge, chunk);
