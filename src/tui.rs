@@ -9,8 +9,8 @@ use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::Color;
 use ratatui::style::Modifier;
 use ratatui::style::Style;
-use ratatui::symbols::block;
 use ratatui::widgets::Gauge;
+use ratatui::widgets::{Scrollbar, ScrollbarOrientation};
 use ratatui::{
     Frame,
     style::Stylize,
@@ -18,7 +18,9 @@ use ratatui::{
     widgets::{Block, Borders, Cell, List, ListDirection, Row, Table},
 };
 
-pub fn render(model: &Model, frame: &mut Frame) {
+const ITEM_HEIGHT: usize = 1;
+
+pub fn render(model: &mut Model, frame: &mut Frame) {
     // chunks divide main UI into regions into which we'll put things
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -40,16 +42,40 @@ pub fn render(model: &Model, frame: &mut Frame) {
     render_hints_popup(model, frame);
 }
 
-fn render_play_text(model: &Model, frame: &mut Frame, chunk: Rect) {
+fn render_play_text(model: &mut Model, frame: &mut Frame, chunk: Rect) {
     let block = Block::default().borders(Borders::ALL).title("Queue");
 
     let songs = model.queue.get_current_queue();
-    let current_idx = model.queue.get_current_idx();
+    let current_idx_opt = model.queue.get_current_idx();
+
+    let total_items = songs.len();
+
+    let inner_height = chunk.height.saturating_sub(2).max(1) as usize;
+
+    let viewport_items = (inner_height / ITEM_HEIGHT.max(1)).max(1);
+
+    let current_idx = current_idx_opt
+        .unwrap_or(0)
+        .min(total_items.saturating_sub(1));
+
+    let start = if total_items <= viewport_items {
+        0
+    } else if current_idx < viewport_items {
+        0
+    } else if current_idx >= total_items - viewport_items {
+        total_items - viewport_items
+    } else {
+        current_idx + 1 - viewport_items
+    };
+
+    let end = (start + viewport_items).min(total_items);
 
     let rows: Vec<Row> = songs
         .iter()
         .enumerate()
-        .map(|(idx, song)| {
+        .skip(start)
+        .take(end - start)
+        .map(|(global_idx, song)| {
             let (artist, title, album, duration) = if let Some(meta) = &song.metadata {
                 (
                     meta.artist.clone(),
@@ -77,7 +103,7 @@ fn render_play_text(model: &Model, frame: &mut Frame, chunk: Rect) {
                 Cell::from(duration),
             ]);
 
-            if Some(idx) == current_idx {
+            if Some(global_idx) == current_idx_opt {
                 row = row.style(
                     Style::default()
                         .bg(Color::Yellow)
@@ -110,6 +136,15 @@ fn render_play_text(model: &Model, frame: &mut Frame, chunk: Rect) {
     .block(block);
 
     frame.render_widget(table, chunk);
+
+    model.scroll_state = model
+        .scroll_state
+        .content_length(total_items.max(1))
+        .viewport_content_length(viewport_items)
+        .position(start);
+
+    let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight);
+    frame.render_stateful_widget(scrollbar, chunk, &mut model.scroll_state);
 }
 fn render_hints(frame: &mut Frame, chunk: Rect) {
     let block = Block::bordered().title("Hints");
