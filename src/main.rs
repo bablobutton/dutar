@@ -8,16 +8,19 @@ use color_eyre::Result;
 use log::{debug, error, warn};
 use queue::SongQueue;
 use ratatui::crossterm::event;
+use ratatui::widgets::ScrollbarState;
 use rodio::{OutputStream, Sink};
 use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender, channel};
 use std::time::Duration;
 
+const ITEM_HEIGHT: usize = 4;
 // represents a state of the app
 struct Model {
     app_state: AppState,     // "main" state of the app for music controls
     popup: Option<Popup>,    // popup state, if any. Ex: command bar, search bar
     ui_state: UIState,       // TODO: state of UI, will need this when have more than one screen
     saved_state: SavedState, // storing whatever we might need to restore later
+    scroll_state: ScrollbarState,
     audio: Audio,
     queue: SongQueue,
     channel: Channel,
@@ -29,10 +32,13 @@ impl Model {
             rodio::OutputStreamBuilder::open_default_stream().expect("open default audio stream");
         let sink = rodio::Sink::connect_new(stream.mixer());
         let (tx, rx): (Sender<Message>, Receiver<Message>) = channel();
+        let queue = SongQueue::new();
+        let scroll_state = ScrollbarState::new(queue.get_current_queue().len());
         Model {
             app_state: AppState::Init,
             ui_state: UIState::Main,
             saved_state: SavedState { volume: 1.0f32 },
+            scroll_state,
             popup: None,
             audio: Audio {
                 _stream: stream, // it's unused, but we can't have it dropped
@@ -127,7 +133,7 @@ fn main() -> Result<()> {
 
     // main event loop, see ELM https://ratatui.rs/concepts/application-patterns/the-elm-architecture/
     while model.app_state != AppState::Done {
-        terminal.draw(|frame| tui::render(&model, frame))?;
+        terminal.draw(|frame| tui::render(&mut model, frame))?;
         // event handler, converts event -> message
         let mut msg = handle_event(&model)?;
 
