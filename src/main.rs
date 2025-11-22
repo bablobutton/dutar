@@ -123,6 +123,7 @@ enum Message {
     Mute,
     Unmute,
     EraseChar,
+    OpenHint,
 }
 
 fn main() -> Result<()> {
@@ -173,26 +174,38 @@ fn handle_event(model: &Model) -> Result<Option<Message>> {
 
 fn handle_key(key: event::KeyEvent, model: &Model) -> Option<Message> {
     match &model.popup {
-        Some(_) => match key.code {
+        Some(Popup::Bar(_)) => match key.code {
             event::KeyCode::Enter => Some(Message::PopupSubmit),
             event::KeyCode::Esc => Some(Message::ClosePopup),
             event::KeyCode::Char(c) => Some(Message::SendCharToPopup(c)),
             event::KeyCode::Backspace => Some(Message::EraseChar),
             _ => None,
         },
-        None => match key.code {
-            event::KeyCode::Char('k') => Some(Message::TogglePlay),
-            event::KeyCode::Char('q') => Some(Message::Quit),
-            event::KeyCode::Char('l') => Some(Message::SkipForward),
-            event::KeyCode::Char('j') => Some(Message::SkipBack),
-            event::KeyCode::Char('n') => Some(Message::Next),
-            event::KeyCode::Char('p') => Some(Message::Previous),
-            event::KeyCode::Char('m') => Some(Message::ToggleMute),
-            event::KeyCode::Char(':') => Some(Message::OpenCommandBar),
-            event::KeyCode::Char('=') => Some(Message::VolumeUp),
-            event::KeyCode::Char('-') => Some(Message::VolumeDown),
+        Some(Popup::Hint) => match key.code {
+            event::KeyCode::Enter => Some(Message::ClosePopup),
+            event::KeyCode::Esc => Some(Message::ClosePopup),
+            event::KeyCode::Char('q') => Some(Message::ClosePopup),
+            event::KeyCode::Char(_) => handle_hotkey(key.code),
             _ => None,
         },
+        None => handle_hotkey(key.code),
+    }
+}
+
+fn handle_hotkey(keycode: event::KeyCode) -> Option<Message> {
+    match keycode {
+        event::KeyCode::Char('k') => Some(Message::TogglePlay),
+        event::KeyCode::Char('q') => Some(Message::Quit),
+        event::KeyCode::Char('l') => Some(Message::SkipForward),
+        event::KeyCode::Char('j') => Some(Message::SkipBack),
+        event::KeyCode::Char('n') => Some(Message::Next),
+        event::KeyCode::Char('p') => Some(Message::Previous),
+        event::KeyCode::Char('m') => Some(Message::ToggleMute),
+        event::KeyCode::Char(':') => Some(Message::OpenCommandBar),
+        event::KeyCode::Char('=') | event::KeyCode::Char('+') => Some(Message::VolumeUp),
+        event::KeyCode::Char('-') | event::KeyCode::Char('_') => Some(Message::VolumeDown),
+        event::KeyCode::Char('?') => Some(Message::OpenHint),
+        _ => None,
     }
 }
 
@@ -279,16 +292,10 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
             None
         }
         Message::OpenCommandBar => {
-            debug_assert!(
-                model.popup.is_none(),
-                "OpenCommandBar shouldn't be sent if there's a popup open"
-            );
-            if model.popup == None {
-                model.popup = Some(Popup::Bar(BarState {
-                    input: String::with_capacity(64),
-                    bar_type: BarType::Command,
-                }));
-            }
+            model.popup = Some(Popup::Bar(BarState {
+                input: String::with_capacity(64),
+                bar_type: BarType::Command,
+            }));
             None
         }
         Message::ClosePopup => {
@@ -326,6 +333,10 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
                     bar_state.input.pop();
                 }
             }
+            None
+        }
+        Message::OpenHint => {
+            model.popup = Some(Popup::Hint);
             None
         }
     };
@@ -372,7 +383,7 @@ fn handle_command(model: &mut Model) -> Option<Message> {
         "toggleplay" => Some(Message::TogglePlay),
         "play" => Some(Message::Play),
         "pause" => Some(Message::Pause),
-        "setvolume" => handle_set_volume(&argv),
+        "setv" => handle_set_volume(&argv),
         "quit" | "q" => Some(Message::Quit),
         "mute" => Some(Message::Mute),
         "unmute" => Some(Message::Unmute),
