@@ -13,9 +13,8 @@ use ratatui::widgets::Gauge;
 use ratatui::widgets::{Scrollbar, ScrollbarOrientation};
 use ratatui::{
     Frame,
-    style::Stylize,
     text::Span,
-    widgets::{Block, Borders, Cell, List, ListDirection, Row, Table},
+    widgets::{Block, Borders, Cell, Row, Table},
 };
 
 const ITEM_HEIGHT: usize = 1;
@@ -26,16 +25,14 @@ pub fn render(model: &mut Model, frame: &mut Frame) {
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Fill(2),        // Play text
-            Constraint::Fill(1),        // Hints
             Constraint::Percentage(7),  // Volume
             Constraint::Percentage(10), // Progress bar
         ])
         .split(frame.area());
 
     render_play_text(model, frame, chunks[0]);
-    render_hints(frame, chunks[1]);
-    render_volume(model, frame, chunks[2]);
-    render_progress(model, frame, chunks[3]);
+    render_volume(model, frame, chunks[1]);
+    render_progress(model, frame, chunks[2]);
 
     // render popus (they don't need chunks)
     render_bar_popup(model, frame);
@@ -145,23 +142,6 @@ fn render_play_text(model: &mut Model, frame: &mut Frame, chunk: Rect) {
 
     let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight);
     frame.render_stateful_widget(scrollbar, chunk, &mut model.scroll_state);
-}
-fn render_hints(frame: &mut Frame, chunk: Rect) {
-    let block = Block::bordered().title("Hints");
-
-    let items = [
-        "k - play/pause",
-        "l/j - forward/backward 5s",
-        "n/p - next/previous",
-        "q - quit",
-    ];
-    let list = List::new(items)
-        .block(block)
-        .style(Style::new().white())
-        .highlight_style(Style::new().italic())
-        .direction(ListDirection::TopToBottom);
-
-    frame.render_widget(list, chunk);
 }
 
 fn render_progress(model: &Model, frame: &mut Frame, chunk: Rect) {
