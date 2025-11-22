@@ -5,7 +5,7 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Borders, Clear, List, ListItem};
 
-pub fn render_hints_popup(model: &Model, frame: &mut Frame) {
+pub fn render_hints_popup(model: &Model, frame: &mut Frame, area: Rect) {
     let Some(Popup::Hint) = model.popup else {
         return;
     };
@@ -38,14 +38,14 @@ pub fn render_hints_popup(model: &Model, frame: &mut Frame) {
     ];
 
     // Calculate popup area
-    let area = hints_area(&hotkey_pairs, &command_pairs, frame.area());
-    frame.render_widget(Clear, area); // Clear the background first
+    let popup_area = hints_area(&hotkey_pairs, &command_pairs, area);
+    frame.render_widget(Clear, popup_area); // Clear the background first
 
     // Split area into left and right halves
     let halves = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
-        .split(area);
+        .split(popup_area);
 
     // Render hotkeys on the left
     let mut hotkey_items = Vec::<ListItem>::new();

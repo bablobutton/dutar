@@ -37,7 +37,7 @@ pub fn render(model: &mut Model, frame: &mut Frame) {
     let app_width = MAX_APP_WIDTH.min(terminal_area.width);
     let app_height = MAX_APP_HEIGHT.min(terminal_area.height);
 
-    let total_area = center_area(terminal_area, app_width, app_height);
+    let app_area = center_area(terminal_area, app_width, app_height);
 
     // chunks divide main UI into regions into which we'll put things
     let chunks = Layout::default()
@@ -47,15 +47,15 @@ pub fn render(model: &mut Model, frame: &mut Frame) {
             Constraint::Percentage(7),  // Volume
             Constraint::Percentage(10), // Progress bar
         ])
-        .split(total_area);
+        .split(app_area);
 
     render_play_text(model, frame, chunks[0]);
     render_volume(model, frame, chunks[1]);
     render_progress(model, frame, chunks[2]);
 
-    // render popus (they don't need chunks)
-    render_bar_popup(model, frame);
-    render_hints_popup(model, frame);
+    // render popups
+    render_bar_popup(model, frame, app_area);
+    render_hints_popup(model, frame, app_area);
 }
 
 fn render_play_text(model: &mut Model, frame: &mut Frame, chunk: Rect) {

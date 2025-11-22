@@ -5,20 +5,20 @@ use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Paragraph};
+use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 
-pub fn render_bar_popup(model: &Model, frame: &mut Frame) {
+pub fn render_bar_popup(model: &Model, frame: &mut Frame, area: Rect) {
     let Some(Popup::Bar(bar_state)) = &model.popup else {
         return;
     };
 
     match &bar_state.bar_type {
-        BarType::Command => render_command_bar(model, frame),
-        // BarType::Search => render_search_bar(model, frame),
+        BarType::Command => render_command_bar(model, frame, area),
+        // BarType::Search => render_search_bar(model, frame, area),
     };
 }
 
-fn render_command_bar(model: &Model, frame: &mut Frame) {
+fn render_command_bar(model: &Model, frame: &mut Frame, area: Rect) {
     let Some(Popup::Bar(command_bar)) = &model.popup else {
         unreachable!();
     };
@@ -35,8 +35,9 @@ fn render_command_bar(model: &Model, frame: &mut Frame) {
     ]))
     .block(block);
 
-    let area = bar_area(frame.area());
-    frame.render_widget(paragraph, area);
+    let popup_area = bar_area(area);
+    frame.render_widget(Clear, popup_area);
+    frame.render_widget(paragraph, popup_area);
 }
 
 fn bar_area(r: Rect) -> Rect {
