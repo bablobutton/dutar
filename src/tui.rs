@@ -44,7 +44,7 @@ pub fn render(model: &mut Model, frame: &mut Frame) {
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Fill(2),        // Play text
-            Constraint::Percentage(7),  // Volume
+            Constraint::Percentage(10), // Volume
             Constraint::Percentage(10), // Progress bar
         ])
         .split(app_area);
