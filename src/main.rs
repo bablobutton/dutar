@@ -265,7 +265,7 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
             None
         }
         Message::SetVolume(vol) => {
-            let volf32 = vol.max(100) as f32 / 100.0f32;
+            let volf32 = vol.clamp(0, 100) as f32 / 100.0f32;
             controls::set_volume(model, volf32);
             None
         }
