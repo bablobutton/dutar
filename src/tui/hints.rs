@@ -10,7 +10,6 @@ pub fn render_hints_popup(model: &Model, frame: &mut Frame) {
         return;
     };
 
-    // Hotkeys
     let hotkey_pairs = [
         ["k", "Toggle play/pause"],
         ["q", "Quit"],
@@ -25,7 +24,6 @@ pub fn render_hints_popup(model: &Model, frame: &mut Frame) {
         ["?", "Show hints"],
     ];
 
-    // Commands
     let command_pairs = [
         ["next", "Next track"],
         ["prev", "Previous track"],
