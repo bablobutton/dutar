@@ -13,7 +13,6 @@ use rodio::{OutputStream, Sink};
 use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender, channel};
 use std::time::Duration;
 
-const ITEM_HEIGHT: usize = 4;
 // represents a state of the app
 struct Model {
     app_state: AppState,     // "main" state of the app for music controls
@@ -27,14 +26,13 @@ struct Model {
 }
 
 impl Model {
-    pub fn new() -> Model {
-        let stream =
-            rodio::OutputStreamBuilder::open_default_stream().expect("open default audio stream");
+    pub fn new() -> Result<Model> {
+        let stream = rodio::OutputStreamBuilder::open_default_stream()?;
         let sink = rodio::Sink::connect_new(stream.mixer());
         let (tx, rx): (Sender<Message>, Receiver<Message>) = channel();
         let queue = SongQueue::new();
         let scroll_state = ScrollbarState::new(queue.get_current_queue().len());
-        Model {
+        Ok(Model {
             app_state: AppState::Init,
             ui_state: UIState::Main,
             saved_state: SavedState { volume: 1.0f32 },
@@ -44,9 +42,9 @@ impl Model {
                 _stream: stream, // it's unused, but we can't have it dropped
                 sink,
             },
-            queue: SongQueue::new(),
+            queue: queue,
             channel: Channel { rx, tx },
-        }
+        })
     }
 }
 
@@ -130,7 +128,7 @@ fn main() -> Result<()> {
     logging::init();
     color_eyre::install()?;
     let mut terminal = ratatui::init();
-    let mut model = Model::new();
+    let mut model = Model::new()?;
 
     // main event loop, see ELM https://ratatui.rs/concepts/application-patterns/the-elm-architecture/
     while model.app_state != AppState::Done {
@@ -392,7 +390,7 @@ fn handle_command(model: &mut Model) -> Option<Message> {
     }
 }
 
-fn handle_set_volume(argv: &Vec<&str>) -> Option<Message> {
+fn handle_set_volume(argv: &[&str]) -> Option<Message> {
     if argv.len() >= 2 {
         let volume: std::result::Result<u8, std::num::ParseIntError> = argv[1].parse();
         if let Ok(v) = volume {

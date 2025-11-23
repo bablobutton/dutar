@@ -113,7 +113,7 @@ pub fn volume_down(model: &mut Model, val: f32) {
     debug!("Volume decreased to {new_vol:.2}");
 }
 
-pub fn get_volume(model: &mut Model) -> f32 {
+pub fn get_volume(model: &Model) -> f32 {
     model.audio.sink.volume()
 }
 
