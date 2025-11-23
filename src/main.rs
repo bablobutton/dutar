@@ -413,69 +413,84 @@ mod tests {
     #[test]
     // state transitions (not all but the important ones)
     // TODO: tests can't load music. need mocks.
-    fn test_update() {
-        // let mut model = Model::new();
-        // assert_eq!(model.app_state, AppState::Init);
-        //
-        // // Init -> Playing
-        // let result = update(&mut model, Message::TogglePlay);
-        // assert_eq!(result, None);
-        // assert_eq!(model.app_state, AppState::Player(PlayerState::Playing));
-        //
-        // // Playing -> Paused
-        // let result = update(&mut model, Message::TogglePlay);
-        // assert_eq!(result, None);
-        // assert_eq!(model.app_state, AppState::Player(PlayerState::Paused));
-        //
-        // // Paused -> Playing
-        // let result = update(&mut model, Message::TogglePlay);
-        // assert_eq!(result, None);
-        // assert_eq!(model.app_state, AppState::Player(PlayerState::Playing));
-        //
-        // // open command bar
-        // let result = update(&mut model, Message::OpenCommandBar);
-        // assert_eq!(result, None);
-        // assert_eq!(model.app_state, AppState::Player(PlayerState::Playing)); // didn't change
-        // assert!(matches!(model.popup, Some(Popup::Bar(_))));
-        // if let Some(Popup::Bar(bar)) = &model.popup {
-        //     assert_eq!(bar.bar_type, BarType::Command);
-        // } else {
-        //     assert!(false);
-        // }
-        //
-        // // send char to popup
-        // let result = update(&mut model, Message::SendCharToPopup('x'));
-        // assert_eq!(result, None);
-        // assert_eq!(model.app_state, AppState::Player(PlayerState::Playing)); // didn't change
-        // assert!(matches!(model.popup, Some(Popup::Bar(_))));
-        // if let Some(Popup::Bar(bar)) = &model.popup {
-        //     assert_eq!(bar.bar_type, BarType::Command);
-        //     assert_eq!(bar.input, "x");
-        // } else {
-        //     assert!(false);
-        // }
-        //
-        // // erase that char
-        // let result = update(&mut model, Message::EraseChar);
-        // assert_eq!(result, None);
-        // assert_eq!(model.app_state, AppState::Player(PlayerState::Playing)); // didn't change
-        // assert!(matches!(model.popup, Some(Popup::Bar(_))));
-        // if let Some(Popup::Bar(bar)) = &model.popup {
-        //     assert_eq!(bar.bar_type, BarType::Command);
-        //     assert!(bar.input.is_empty());
-        // } else {
-        //     assert!(false);
-        // }
-        //
-        // // close the popup
-        // let result = update(&mut model, Message::ClosePopup);
-        // assert_eq!(result, None);
-        // assert_eq!(model.app_state, AppState::Player(PlayerState::Playing)); // didn't change
-        // assert!(model.popup.is_none());
-        //
-        // // Playing -> Quit
-        // let result = update(&mut model, Message::Quit);
-        // assert_eq!(result, None);
-        // assert_eq!(model.app_state, AppState::Done);
+    fn test_state_transitions() {
+        let mut model = Model::new().unwrap();
+        assert_eq!(model.app_state, AppState::Init);
+
+        // Test TogglePlay dispatches to Play message when not playing
+        let result = update(&mut model, Message::TogglePlay);
+        assert_eq!(result, Some(Message::Play));
+        assert_eq!(model.app_state, AppState::Init); // state unchanged, Play message needs to be handled
+
+        // Test Pause message (transitions to Paused without needing files)
+        let result = update(&mut model, Message::Pause);
+        assert_eq!(result, None);
+        assert_eq!(model.app_state, AppState::Player(PlayerState::Paused));
+
+        // Test TogglePlay dispatches to Play when paused
+        let result = update(&mut model, Message::TogglePlay);
+        assert_eq!(result, Some(Message::Play));
+        assert_eq!(model.app_state, AppState::Player(PlayerState::Paused)); // unchanged until Play handled
+
+        // Manually transition to playing for subsequent tests
+        model.app_state = AppState::Player(PlayerState::Playing);
+
+        // Test TogglePlay dispatches to Pause when playing
+        let result = update(&mut model, Message::TogglePlay);
+        assert_eq!(result, Some(Message::Pause));
+
+        // can't test Message::Play because no music file can be loaded during tests
+
+        // open command bar
+        let result = update(&mut model, Message::OpenCommandBar);
+        assert_eq!(result, None);
+        assert_eq!(model.app_state, AppState::Player(PlayerState::Playing)); // didn't change
+        assert!(matches!(model.popup, Some(Popup::Bar(_))));
+        if let Some(Popup::Bar(bar)) = &model.popup {
+            assert_eq!(bar.bar_type, BarType::Command);
+        } else {
+            assert!(false);
+        }
+
+        // send char to popup
+        let result = update(&mut model, Message::SendCharToPopup('x'));
+        assert_eq!(result, None);
+        assert_eq!(model.app_state, AppState::Player(PlayerState::Playing)); // didn't change
+        assert!(matches!(model.popup, Some(Popup::Bar(_))));
+        if let Some(Popup::Bar(bar)) = &model.popup {
+            assert_eq!(bar.bar_type, BarType::Command);
+            assert_eq!(bar.input, "x");
+        } else {
+            assert!(false);
+        }
+
+        // erase that char
+        let result = update(&mut model, Message::EraseChar);
+        assert_eq!(result, None);
+        assert_eq!(model.app_state, AppState::Player(PlayerState::Playing)); // didn't change
+        assert!(matches!(model.popup, Some(Popup::Bar(_))));
+        if let Some(Popup::Bar(bar)) = &model.popup {
+            assert_eq!(bar.bar_type, BarType::Command);
+            assert!(bar.input.is_empty());
+        } else {
+            assert!(false);
+        }
+
+        // close the popup
+        let result = update(&mut model, Message::ClosePopup);
+        assert_eq!(result, None);
+        assert_eq!(model.app_state, AppState::Player(PlayerState::Playing)); // didn't change
+        assert!(model.popup.is_none());
+
+        // open hints
+        let result = update(&mut model, Message::OpenHint);
+        assert_eq!(result, None);
+        assert_eq!(model.app_state, AppState::Player(PlayerState::Playing)); // didn't change
+        assert!(matches!(model.popup, Some(Popup::Hint)));
+
+        // Playing -> Quit
+        let result = update(&mut model, Message::Quit);
+        assert_eq!(result, None);
+        assert_eq!(model.app_state, AppState::Done);
     }
 }
