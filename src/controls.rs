@@ -102,6 +102,7 @@ pub fn volume_up(model: &mut Model, val: f32) {
     let curr_vol = sink.volume();
     let new_vol = (curr_vol + val).clamp(0.0, 1.0);
     sink.set_volume(new_vol);
+    model.saved_state.volume = new_vol;
     debug!("Volume increased to {new_vol:.2}");
 }
 
@@ -110,6 +111,7 @@ pub fn volume_down(model: &mut Model, val: f32) {
     let curr_vol = sink.volume();
     let new_vol = (curr_vol - val).clamp(0.0, 1.0);
     sink.set_volume(new_vol);
+    model.saved_state.volume = new_vol;
     debug!("Volume decreased to {new_vol:.2}");
 }
 
@@ -119,4 +121,5 @@ pub fn get_volume(model: &Model) -> f32 {
 
 pub fn set_volume(model: &mut Model, val: f32) {
     model.audio.sink.set_volume(val);
+    model.saved_state.volume = val;
 }
