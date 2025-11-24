@@ -1,10 +1,12 @@
 mod controls;
+mod db;
 mod logging;
 mod queue;
 mod tui;
 mod utils;
 
 use color_eyre::Result;
+use db::DB;
 use log::{debug, error, warn};
 use queue::SongQueue;
 use ratatui::crossterm::event;
@@ -23,19 +25,23 @@ struct Model {
     audio: Audio,
     queue: SongQueue,
     channel: Channel,
+    db: DB,
 }
 
 impl Model {
-    pub fn new() -> Result<Model> {
+    pub fn init() -> Result<Model> {
         let stream = rodio::OutputStreamBuilder::open_default_stream()?;
         let sink = rodio::Sink::connect_new(stream.mixer());
         let (tx, rx): (Sender<Message>, Receiver<Message>) = channel();
         let queue = SongQueue::new();
         let scroll_state = ScrollbarState::new(queue.get_current_queue().len());
-        Ok(Model {
+        let db = DB::new()?;
+        let saved_state = db.read_saved_state()?;
+
+        let mut model = Model {
             app_state: AppState::Init,
             ui_state: UIState::Main,
-            saved_state: SavedState { volume: 1.0f32 },
+            saved_state,
             scroll_state,
             popup: None,
             audio: Audio {
@@ -44,7 +50,16 @@ impl Model {
             },
             queue: queue,
             channel: Channel { rx, tx },
-        })
+            db,
+        };
+
+        Self::restore_saved_state(&mut model);
+
+        Ok(model)
+    }
+
+    fn restore_saved_state(model: &mut Model) {
+        controls::set_volume(model, model.saved_state.volume);
     }
 }
 
@@ -128,7 +143,7 @@ fn main() -> Result<()> {
     logging::init();
     color_eyre::install()?;
     let mut terminal = ratatui::init();
-    let mut model = Model::new()?;
+    let mut model = Model::init()?;
 
     // main event loop, see ELM https://ratatui.rs/concepts/application-patterns/the-elm-architecture/
     while model.app_state != AppState::Done {
@@ -143,6 +158,7 @@ fn main() -> Result<()> {
         }
     }
 
+    model.db.write_saved_state(&model.saved_state)?;
     ratatui::restore();
     Ok(())
 }
@@ -414,7 +430,7 @@ mod tests {
     // state transitions (not all but the important ones)
     // TODO: tests can't load music. need mocks.
     fn test_state_transitions() {
-        let mut model = Model::new().unwrap();
+        let mut model = Model::init().unwrap();
         assert_eq!(model.app_state, AppState::Init);
 
         // Test TogglePlay dispatches to Play message when not playing
