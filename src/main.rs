@@ -264,10 +264,12 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
         }
         Message::Next => {
             controls::play_next(model);
+            model.app_state = AppState::Player(PlayerState::Playing);
             None
         }
         Message::Previous => {
             controls::play_previous(model);
+            model.app_state = AppState::Player(PlayerState::Playing);
             None
         }
         Message::VolumeUp => {
