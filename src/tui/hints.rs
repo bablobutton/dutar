@@ -1,7 +1,7 @@
 use crate::{Model, Popup};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
-use ratatui::style::Style;
+use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Borders, Clear, List, ListItem};
 
@@ -52,10 +52,11 @@ pub fn render_hints_popup(model: &Model, frame: &mut Frame, area: Rect) {
     for pair in hotkey_pairs {
         let hint = pair[0];
         let desc = pair[1];
-        hotkey_items.push(ListItem::new(Line::from(Span::styled(
-            format!("{hint} - {desc}"),
-            Style::default(),
-        ))));
+        hotkey_items.push(ListItem::new(Line::from(vec![
+            Span::styled(hint, Style::default()),
+            Span::styled(" - ", Style::default().fg(Color::DarkGray)),
+            Span::styled(desc, Style::default().fg(Color::DarkGray)),
+        ])));
     }
 
     let hotkey_block = Block::default()
@@ -71,10 +72,11 @@ pub fn render_hints_popup(model: &Model, frame: &mut Frame, area: Rect) {
     for pair in command_pairs {
         let cmd = pair[0];
         let desc = pair[1];
-        command_items.push(ListItem::new(Line::from(Span::styled(
-            format!(":{cmd} - {desc}"),
-            Style::default(),
-        ))));
+        command_items.push(ListItem::new(Line::from(vec![
+            Span::styled(format!(":{cmd}"), Style::default()),
+            Span::styled(" - ", Style::default().fg(Color::DarkGray)),
+            Span::styled(desc, Style::default().fg(Color::DarkGray)),
+        ])));
     }
 
     let command_block = Block::default()
