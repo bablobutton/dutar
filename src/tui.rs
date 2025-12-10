@@ -66,7 +66,7 @@ fn render_play_text(model: &mut Model, frame: &mut Frame, chunk: Rect) {
 
     let total_items = songs.len();
 
-    let inner_height = chunk.height.saturating_sub(2).max(1) as usize;
+    let inner_height = chunk.height.saturating_sub(3).max(1) as usize;
 
     let viewport_items = (inner_height / ITEM_HEIGHT.max(1)).max(1);
 
