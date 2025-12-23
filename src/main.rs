@@ -10,7 +10,7 @@ use db::DB;
 use log::{debug, error, warn};
 use queue::SongQueue;
 use ratatui::crossterm::event;
-use ratatui::widgets::ScrollbarState;
+use ratatui::widgets::TableState;
 use rodio::{OutputStream, Sink};
 use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender, channel};
 use std::time::Duration;
@@ -19,9 +19,8 @@ use std::time::Duration;
 struct Model {
     app_state: AppState,     // "main" state of the app for music controls
     popup: Option<Popup>,    // popup state, if any. Ex: command bar, search bar
-    ui_state: UIState,       // TODO: state of UI, will need this when have more than one screen
+    ui: UI,                  // TODO: state of UI, will need this when have more than one screen
     saved_state: SavedState, // storing whatever we might need to restore later
-    scroll_state: ScrollbarState,
     audio: Audio,
     queue: SongQueue,
     channel: Channel,
@@ -34,15 +33,16 @@ impl Model {
         let sink = rodio::Sink::connect_new(stream.mixer());
         let (tx, rx): (Sender<Message>, Receiver<Message>) = channel();
         let queue = SongQueue::new();
-        let scroll_state = ScrollbarState::new(queue.get_current_queue().len());
         let db = DB::new()?;
         let saved_state = db.read_saved_state()?;
 
         let mut model = Model {
             app_state: AppState::Init,
-            ui_state: UIState::Main,
+            ui: UI {
+                state: UIState::Main,
+                song_queue_table: TableState::new(),
+            },
             saved_state,
-            scroll_state,
             popup: None,
             audio: Audio {
                 _stream: stream, // it's unused, but we can't have it dropped
@@ -113,6 +113,11 @@ enum BarType {
 #[derive(Debug, PartialEq)]
 enum UIState {
     Main,
+}
+
+struct UI {
+    state: UIState,
+    song_queue_table: TableState,
 }
 
 #[derive(PartialEq, Debug)]

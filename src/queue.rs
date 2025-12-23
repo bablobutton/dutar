@@ -25,15 +25,6 @@ pub struct Metadata {
 }
 
 impl SongQueue {
-    // pub fn remove() {
-    //     todo!();
-    // }
-    //
-    // pub fn clear(&mut self) {
-    //     self.current_idx = 0;
-    //     self.queue.clear()
-    // }
-
     pub fn advance(&mut self) {
         if self.queue.is_empty() {
             return;
@@ -56,10 +47,6 @@ impl SongQueue {
         } else {
             self.current_idx -= 1;
         }
-    }
-
-    pub fn get_current_queue(&self) -> &[Song] {
-        &self.queue
     }
 
     pub fn get_current_idx(&self) -> Option<usize> {
@@ -115,14 +102,6 @@ impl SongQueue {
             queue,
             current_idx: 0,
         }
-    }
-
-    pub fn len(&self) -> usize {
-        self.queue.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.queue.is_empty()
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &Song> {
