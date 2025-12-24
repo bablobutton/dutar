@@ -15,6 +15,7 @@
 * Album cover -> ASCII art
 * If current duration is > 3 seconds, "previus" action should restart the song
 * User can execute `dutar song.mp3` or `dutar .` to play from the current song or directory.
+* Exponential skipping intervals when holding skip button (J or L). Example: holding L should skip forward 1s, 2s, 4s, 8s, 16s...
 
 ...
 P2P network - ?
