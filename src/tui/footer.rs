@@ -75,7 +75,7 @@ fn render_progress_bar(model: &Model, frame: &mut Frame, area: Rect) {
         .as_secs();
 
     let ratio = if total_secs > 0 {
-        (current_secs as f64) / (total_secs as f64)
+        ((current_secs as f64) / (total_secs as f64)).clamp(0.0, 1.0)
     } else {
         0f64
     };
@@ -99,7 +99,7 @@ fn render_progress_bar(model: &Model, frame: &mut Frame, area: Rect) {
 }
 
 fn render_volume_bar(model: &Model, frame: &mut Frame, area: Rect) {
-    let ratio = controls::get_volume(model).min(1.0) as f64;
+    let ratio = controls::get_volume(model).clamp(0.0, 1.0) as f64;
 
     LineGauge::default()
         .ratio(ratio)
