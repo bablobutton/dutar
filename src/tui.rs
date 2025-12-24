@@ -1,20 +1,16 @@
 mod bar;
+mod footer;
 mod hints;
 mod queue;
 
 use crate::Model;
 use bar::render_bar_popup;
+use footer::render_footer;
 use hints::render_hints_popup;
 use queue::render_queue;
+use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::layout::{Constraint, Direction, Flex, Layout};
-use ratatui::style::Color;
-use ratatui::style::Style;
-use ratatui::widgets::{BorderType, Gauge};
-use ratatui::{
-    Frame,
-    widgets::{Block, Borders},
-};
 
 const MAX_APP_WIDTH: u16 = 100;
 const MAX_APP_HEIGHT: u16 = 30;
@@ -41,74 +37,15 @@ pub fn render(model: &mut Model, frame: &mut Frame) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Fill(2),        // Play text
-            Constraint::Percentage(10), // Volume
-            Constraint::Percentage(10), // Progress bar
+            Constraint::Fill(1),   // song queue
+            Constraint::Length(2), // footer
         ])
         .split(app_area);
 
     render_queue(model, frame, chunks[0]);
-    render_volume(model, frame, chunks[1]);
-    render_progress(model, frame, chunks[2]);
+    render_footer(model, frame, chunks[1]);
 
     // render popups
     render_bar_popup(model, frame, app_area);
     render_hints_popup(model, frame, app_area);
-}
-
-fn render_progress(model: &Model, frame: &mut Frame, chunk: Rect) {
-    let sink = &model.audio.sink;
-    let current_pos = sink.get_pos();
-    let secs = current_pos.as_secs();
-
-    let total_duration = model
-        .queue
-        .get_current_song()
-        .and_then(|song| song.metadata.as_ref())
-        .map(|meta| meta.duration)
-        .unwrap_or(0);
-
-    let ratio = if total_duration > 0 {
-        (secs as f64) / (total_duration as f64)
-    } else {
-        0.0
-    };
-    let gauge = Gauge::default()
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_type(BorderType::Rounded)
-                .title("Progress"),
-        )
-        .ratio(ratio)
-        .style(Style::default().fg(Color::Yellow))
-        .label(format!(
-            "{:02}:{:02} / {:02}:{:02}",
-            secs / 60,
-            secs % 60,
-            total_duration / 60,
-            total_duration % 60
-        ));
-
-    frame.render_widget(gauge, chunk);
-}
-
-fn render_volume(model: &Model, frame: &mut Frame, chunk: Rect) {
-    let sink = &model.audio.sink;
-    let max_vol = 1.0;
-    let curr_vol = sink.volume();
-
-    let ratio = (curr_vol as f64) / (max_vol as f64);
-    let gauge = Gauge::default()
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_type(BorderType::Rounded)
-                .title("Volume"),
-        )
-        .ratio(ratio)
-        .style(Style::default().fg(Color::Yellow))
-        .label(format!("{curr_vol:.2}",));
-
-    frame.render_widget(gauge, chunk);
 }

@@ -10,18 +10,18 @@ pub struct SongQueue {
     current_idx: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Song {
     pub path: PathBuf,
     pub metadata: Option<Metadata>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Metadata {
     pub title: String,
     pub artist: String,
     pub album: String,
-    pub duration: u64,
+    pub duration_seconds: u64,
 }
 
 impl SongQueue {
@@ -58,11 +58,7 @@ impl SongQueue {
     }
 
     pub fn get_current_song(&self) -> Option<&Song> {
-        let current_song = self.queue.get(self.current_idx);
-        if let Some(song) = current_song {
-            return Some(song);
-        }
-        None
+        self.queue.get(self.current_idx)
     }
 
     pub fn new() -> Self {

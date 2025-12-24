@@ -49,7 +49,11 @@ pub fn render_queue(model: &mut Model, frame: &mut Frame, chunk: Rect) {
                     meta.artist.as_str(),
                     meta.title.as_str(),
                     meta.album.as_str(),
-                    format!("{}:{:02}", meta.duration / 60, meta.duration % 60),
+                    format!(
+                        "{}:{:02}",
+                        meta.duration_seconds / 60,
+                        meta.duration_seconds % 60
+                    ),
                 ),
                 None => {
                     let filename = song
