@@ -62,6 +62,13 @@ pub fn extract_metadata(path: &Path) -> Option<Metadata> {
             .album()
             .map(|s| s.to_string())
             .unwrap_or_else(|| "Unknown Album".to_string()),
-        duration: tagged_file.properties().duration().as_secs(),
+        duration_seconds: tagged_file.properties().duration().as_secs(),
     })
+}
+
+pub fn count_digits(num: u64) -> usize {
+    if num == 0 {
+        return 1;
+    }
+    (num.ilog10() + 1) as usize
 }

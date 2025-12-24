@@ -10,7 +10,6 @@
 * Search bar.
     - Same UI as for command bar with fzf and shit
 * Some way of displaying and playing albums, playlists, artists.
-* UI cleanup per design choices.
 * Shuffle, repeat
 * Notification system (at least for errors that worth showing to user).
 * Album cover -> ASCII art

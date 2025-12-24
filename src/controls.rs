@@ -97,6 +97,19 @@ pub fn backward_seconds(model: &mut Model, seconds: u64) {
     debug!("Backward {seconds} seconds, current_duration={curr_duration:?}");
 }
 
+pub fn get_current_duration(model: &Model) -> Duration {
+    model.audio.sink.get_pos()
+}
+
+pub fn get_current_song_total_duration(model: &Model) -> Option<Duration> {
+    if let Some(song) = model.queue.get_current_song() {
+        if let Some(metadata) = &song.metadata {
+            return Some(Duration::from_secs(metadata.duration_seconds));
+        }
+    }
+    None
+}
+
 pub fn volume_up(model: &mut Model, val: f32) {
     let sink = &model.audio.sink;
     let curr_vol = sink.volume();
