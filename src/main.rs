@@ -5,7 +5,7 @@ mod queue;
 mod tui;
 mod utils;
 
-use color_eyre::Result;
+use color_eyre::{Result, eyre::WrapErr};
 use db::DB;
 use log::{debug, error, warn};
 use queue::SongQueue;
@@ -34,7 +34,7 @@ impl Model {
         let (tx, rx): (Sender<Message>, Receiver<Message>) = channel();
         let queue = SongQueue::new();
         let db = DB::new()?;
-        let saved_state = db.read_saved_state()?;
+        let saved_state = db.read_saved_state().wrap_err("DB read saved state")?;
 
         let mut model = Model {
             app_state: AppState::Init,
@@ -60,6 +60,14 @@ impl Model {
 
     fn restore_saved_state(model: &mut Model) {
         controls::set_volume(model, model.saved_state.volume);
+        model
+            .queue
+            .set_current_song_idx(model.saved_state.current_song_index);
+    }
+
+    pub fn update_saved_state(&mut self) {
+        self.saved_state.current_song_index = self.queue.get_current_idx().unwrap_or(0);
+        self.saved_state.volume = controls::get_volume(self);
     }
 }
 
@@ -82,8 +90,10 @@ enum AppState {
     Done,
 }
 
+#[derive(Debug)]
 struct SavedState {
     volume: f32,
+    current_song_index: usize,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -165,6 +175,7 @@ fn main() -> Result<()> {
         }
     }
 
+    model.update_saved_state();
     model.db.write_saved_state(&model.saved_state)?;
     ratatui::restore();
     Ok(())

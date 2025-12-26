@@ -61,6 +61,17 @@ impl SongQueue {
         self.queue.get(self.current_idx)
     }
 
+    pub fn set_current_song_idx(&mut self, idx: usize) {
+        if idx < self.queue.len() {
+            self.current_idx = idx;
+        } else {
+            error!(
+                "Attempted to set song index [{idx}] bigger than queue size {}",
+                self.queue.len()
+            );
+        }
+    }
+
     pub fn new() -> Self {
         let mut queue = Vec::<Song>::new();
         let dir_path = audio_dir().unwrap_or_else(|| {
