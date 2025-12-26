@@ -1,11 +1,11 @@
 mod migrations;
 
-use crate::SavedState;
+use crate::{SavedState, queue::SongQueue};
 use color_eyre::{Result, eyre::OptionExt};
 use dirs::data_dir;
-use log::debug;
+use log::{debug, error};
 use rusqlite::{Connection, params};
-use std::fs;
+use std::{fs, path::PathBuf};
 
 pub struct DB {
     conn: Connection,
@@ -37,11 +37,7 @@ impl DB {
             );
             CREATE TABLE IF NOT EXISTS queue_songs (
                 id INTEGER PRIMARY KEY,
-                file_path TEXT NOT NULL,
-                title TEXT,
-                artist TEXT,
-                album TEXT,
-                duration INTEGER
+                file_path TEXT NOT NULL
             );
             INSERT OR IGNORE INTO saved_state (id) VALUES (1);",
         )?;
@@ -78,6 +74,43 @@ impl DB {
             "UPDATE saved_state SET volume = ?, current_song_index = ? WHERE id = 1",
             params![saved_state.volume, saved_state.current_song_index],
         )?;
+        Ok(())
+    }
+
+    pub fn read_queue_songs_paths(&self) -> Result<Vec<PathBuf>> {
+        let mut sql = self.conn.prepare("SELECT file_path FROM queue_songs")?;
+        let rows = sql.query_map([], |row| row.get::<_, String>(0))?;
+        let paths: Vec<PathBuf> = rows
+            .filter_map(|r| match r {
+                Err(e) => {
+                    error!("ERROR reading queue from DB: {e}");
+                    None
+                }
+                Ok(s) => Some(PathBuf::from(s)),
+            })
+            .collect();
+        debug!("Read [{}] paths from saved DB queue", paths.len());
+        Ok(paths)
+    }
+
+    pub fn write_queue_songs(&mut self, song_queue: &SongQueue) -> Result<()> {
+        let tx = self.conn.transaction()?;
+
+        tx.execute("DELETE FROM queue_songs", [])?;
+
+        {
+            let mut stmt = tx.prepare("INSERT INTO queue_songs (file_path) VALUES (?)")?;
+            for song in song_queue.iter() {
+                stmt.execute(params![song.path.to_str()])?;
+            }
+        }
+
+        tx.commit()?;
+
+        debug!(
+            "Wrote {} songs to queue_songs table",
+            song_queue.iter().count()
+        );
         Ok(())
     }
 }

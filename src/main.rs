@@ -32,8 +32,8 @@ impl Model {
         let stream = rodio::OutputStreamBuilder::open_default_stream()?;
         let sink = rodio::Sink::connect_new(stream.mixer());
         let (tx, rx): (Sender<Message>, Receiver<Message>) = channel();
-        let queue = SongQueue::new();
         let db = DB::new()?;
+        let queue = SongQueue::restore_or_default(db.read_queue_songs_paths());
         let saved_state = db.read_saved_state().wrap_err("DB read saved state")?;
 
         let mut model = Model {
@@ -177,6 +177,7 @@ fn main() -> Result<()> {
 
     model.update_saved_state();
     model.db.write_saved_state(&model.saved_state)?;
+    model.db.write_queue_songs(&model.queue)?;
     ratatui::restore();
     Ok(())
 }
