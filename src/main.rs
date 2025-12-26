@@ -12,6 +12,7 @@ use queue::SongQueue;
 use ratatui::crossterm::event;
 use ratatui::widgets::TableState;
 use rodio::{OutputStream, Sink};
+use std::env;
 use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender, channel};
 use std::time::Duration;
 
@@ -28,13 +29,27 @@ struct Model {
 }
 
 impl Model {
-    pub fn init() -> Result<Model> {
+    pub fn init(args: Vec<String>) -> Result<Model> {
         let stream = rodio::OutputStreamBuilder::open_default_stream()?;
         let sink = rodio::Sink::connect_new(stream.mixer());
         let (tx, rx): (Sender<Message>, Receiver<Message>) = channel();
         let db = DB::new()?;
-        let queue = SongQueue::restore_or_default(db.read_queue_songs_paths());
-        let saved_state = db.read_saved_state().wrap_err("DB read saved state")?;
+        let mut saved_state = db.read_saved_state().wrap_err("DB read saved state")?;
+
+        let queue = if args.len() == 2 {
+            // When exactly 1 argument is supplied,
+            // treat it as a song or a directory of songs to open.
+            // If unsuccessful, terminate app with error.
+            let q = SongQueue::open_path(&args[1]).wrap_err("Error loading songs")?;
+            debug!("Successfully loaded songs from {}", args[1]);
+            // reset everything except volume level
+            let vol = saved_state.volume;
+            saved_state = SavedState::default();
+            saved_state.volume = vol;
+            q
+        } else {
+            SongQueue::restore_or_default(db.read_queue_songs_paths())
+        };
 
         let mut model = Model {
             app_state: AppState::Init,
@@ -100,7 +115,7 @@ enum AppState {
     Done,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct SavedState {
     volume: f32,
     current_song_index: usize,
@@ -168,10 +183,10 @@ enum Message {
 fn main() -> Result<()> {
     logging::init();
     color_eyre::install()?;
-    let mut terminal = ratatui::init();
-
+    let args: Vec<String> = env::args().collect();
     // app initialization, db creation/migrations, saved state restoration
-    let mut model = Model::init()?;
+    let mut model = Model::init(args)?;
+    let mut terminal = ratatui::init();
 
     // main event loop, see ELM https://ratatui.rs/concepts/application-patterns/the-elm-architecture/
     while model.app_state != AppState::Done {
@@ -462,7 +477,7 @@ mod tests {
     // state transitions (not all but the important ones)
     // TODO: tests can't load music. need mocks.
     fn test_state_transitions() {
-        let mut model = Model::init().unwrap();
+        let mut model = Model::init(vec![]).unwrap();
         assert_eq!(model.app_state, AppState::Init);
 
         // Test TogglePlay dispatches to Play message when not playing

@@ -1,5 +1,5 @@
 use crate::utils::{extract_metadata, for_each_subdir};
-use color_eyre::Result;
+use color_eyre::{Result, eyre::WrapErr, eyre::eyre};
 use dirs::{audio_dir, home_dir};
 use infer::get_from_path;
 use log::{debug, error, info};
@@ -73,10 +73,10 @@ impl SongQueue {
         }
     }
 
-    // when no queue is saved persistently to DB, dutar will scan default Music dir
-    // and use that as a queue
+    // When no queue is saved persistently to DB, dutar will scan default Music dir
+    // and use that as a queue.
+    // It's okay for this function to return empty queue.
     fn default_queue() -> Self {
-        let mut queue = Vec::<Song>::new();
         let dir_path = audio_dir().unwrap_or_else(|| {
             let mut dir_path = home_dir().expect("Access to home directory");
             dir_path.push("Music");
@@ -87,29 +87,19 @@ impl SongQueue {
             debug!("Music directory created first time : {dir_path:?}");
         }
 
-        for_each_subdir(
-            dir_path.as_path(),
-            &mut |dir_entry: &fs::DirEntry| match get_from_path(dir_entry.path()) {
-                Ok(tp) => {
-                    if tp
-                        .filter(|t| t.matcher_type() == infer::MatcherType::Audio)
-                        .is_some()
-                    {
-                        let song = Song {
-                            path: dir_entry.path(),
-                            metadata: extract_metadata(dir_entry.path().as_path()),
-                        };
-                        queue.push(song);
-                    }
-                }
-                Err(error) => {
-                    error!("Did not get file type : {error}");
-                }
-            },
-        );
+        let songs = match Self::load_songs_from_path(dir_path.clone()) {
+            Ok(songs) => songs,
+            Err(e) => {
+                error!(
+                    "Error loading songs from [{}], returning empty queue, error: {e}",
+                    dir_path.as_path().display()
+                );
+                Vec::<Song>::new()
+            }
+        };
 
         Self {
-            queue,
+            queue: songs,
             current_idx: 0,
         }
     }
@@ -127,27 +117,84 @@ impl SongQueue {
             return Self::default_queue();
         }
 
-        let queue = queue_paths
-            .into_iter()
-            .filter_map(|pb| match get_from_path(&pb) {
-                Ok(tp) => match tp.filter(|t| t.matcher_type() == infer::MatcherType::Audio) {
-                    Some(_) => Some(Song {
-                        metadata: extract_metadata(&pb),
-                        path: pb,
-                    }),
-                    None => None,
-                },
-                Err(e) => {
-                    error!("Error getting file type: {e}");
-                    None
-                }
+        let queue: Vec<Song> = queue_paths
+            .iter()
+            .map(|p| match Self::load_songs_from_path(p.clone()) {
+                Ok(songs) => songs,
+                Err(_) => vec![],
             })
+            .flatten()
             .collect();
 
         Self {
             queue: queue,
             current_idx: 0,
         }
+    }
+
+    // Intent of this function is when user opens a specific dir for songs.
+    // I.e. it's okay for this function to return error when no songs were found under
+    // provided path.
+    pub fn open_path(path_str: &String) -> Result<Self> {
+        let songs = Self::load_songs_from_path(PathBuf::from(path_str))
+            .wrap_err(format!("Error opening {path_str}"))?;
+
+        Ok(Self {
+            queue: songs,
+            current_idx: 0,
+        })
+    }
+
+    fn load_songs_from_path(path: PathBuf) -> Result<Vec<Song>> {
+        if !path.exists() {
+            return Err(eyre!("Path does not exist: {}", path.display()));
+        }
+
+        let mut songs = Vec::<Song>::new();
+        if path.is_dir() {
+            for_each_subdir(
+                path.as_path(),
+                &mut |dir_entry: &fs::DirEntry| match get_from_path(dir_entry.path()) {
+                    Ok(tp) => {
+                        if tp
+                            .filter(|t| t.matcher_type() == infer::MatcherType::Audio)
+                            .is_some()
+                        {
+                            songs.push(Song {
+                                path: dir_entry.path(),
+                                metadata: extract_metadata(dir_entry.path().as_path()),
+                            });
+                        }
+                    }
+                    Err(error) => {
+                        error!("Did not get file type : {error}");
+                    }
+                },
+            );
+        } else {
+            match get_from_path(&path) {
+                Ok(tp) => {
+                    if tp
+                        .filter(|t| t.matcher_type() == infer::MatcherType::Audio)
+                        .is_some()
+                    {
+                        songs.push(Song {
+                            metadata: extract_metadata(&path),
+                            path: path,
+                        });
+                    }
+                }
+                Err(error) => {
+                    error!("Did not get file type : {error}");
+                }
+            }
+        }
+
+        if songs.len() == 0 {
+            return Err(eyre!("No songs found"));
+        }
+
+        Ok(songs)
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &Song> {
