@@ -1,6 +1,5 @@
 ## Rough plan of things to do in no particular order
 
-* Persistent storage (sqlite or json) - queue, volume level, current song time, user playlists, song metadata (album, artist, etc.)
 * Bug: play one song and delete another song from dutar dir. Need to detect when the song is missing and mark it as missing.
 * Support creating playlists.
 * Command bar.
@@ -14,7 +13,6 @@
 * Notification system (at least for errors that worth showing to user).
 * Album cover -> ASCII art
 * If current duration is > 3 seconds, "previus" action should restart the song
-* User can execute `dutar song.mp3` or `dutar .` to play from the current song or directory.
 * Exponential skipping intervals when holding skip button (J or L). Example: holding L should skip forward 1s, 2s, 4s, 8s, 16s...
 * Panic hook so that crashed app doesn't break the terminal.
 
