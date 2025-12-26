@@ -482,6 +482,7 @@ dependencies = [
  "rusqlite",
  "rusqlite_migration",
  "rusty-hook",
+ "shellexpand",
  "symphonia",
  "thiserror 2.0.17",
  "tracing",
@@ -1448,6 +1449,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "shellexpand"
+version = "3.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b1fdf65dd6331831494dd616b30351c38e96e45921a27745cf98490458b90bb"
+dependencies = [
+ "dirs",
 ]
 
 [[package]]

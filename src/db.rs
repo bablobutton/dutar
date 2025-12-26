@@ -2,7 +2,7 @@ mod migrations;
 
 use crate::{SavedState, queue::SongQueue};
 use color_eyre::{Result, eyre::OptionExt};
-use dirs::data_dir;
+use dirs::data_local_dir;
 use log::{debug, error};
 use rusqlite::{Connection, params};
 use std::{fs, path::PathBuf, time::Duration};
@@ -16,7 +16,7 @@ impl DB {
         // Linux:   ~/.local/share/dutar/dutar.db
         // macOS:   ~/Library/Application Support/dutar/dutar.db
         // Windows: C:\Users\<user>\AppData\Roaming\dutar\dutar.db
-        let mut db_path = data_dir().ok_or_eyre("Couldn't get data dir path")?;
+        let mut db_path = data_local_dir().ok_or_eyre("Couldn't get data dir path")?;
         db_path.push("dutar");
         if !db_path.exists() {
             fs::create_dir_all(&db_path)?;
