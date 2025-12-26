@@ -1,7 +1,8 @@
 use crate::utils::{extract_metadata, for_each_subdir};
+use color_eyre::Result;
 use dirs::{audio_dir, home_dir};
 use infer::get_from_path;
-use log::{debug, error};
+use log::{debug, error, info};
 use std::fs;
 use std::path::PathBuf;
 
@@ -72,7 +73,9 @@ impl SongQueue {
         }
     }
 
-    pub fn new() -> Self {
+    // when no queue is saved persistently to DB, dutar will scan default Music dir
+    // and use that as a queue
+    fn default_queue() -> Self {
         let mut queue = Vec::<Song>::new();
         let dir_path = audio_dir().unwrap_or_else(|| {
             let mut dir_path = home_dir().expect("Access to home directory");
@@ -107,6 +110,42 @@ impl SongQueue {
 
         Self {
             queue,
+            current_idx: 0,
+        }
+    }
+
+    pub fn restore_or_default(saved_queue_paths: Result<Vec<PathBuf>>) -> Self {
+        let queue_paths = match saved_queue_paths {
+            Ok(paths) => paths,
+            Err(e) => {
+                error!("Failed to read queue paths: {}", e);
+                return Self::default_queue();
+            }
+        };
+        if queue_paths.len() == 0 {
+            info!("Empty saved queue, reading from default dir");
+            return Self::default_queue();
+        }
+
+        let queue = queue_paths
+            .into_iter()
+            .filter_map(|pb| match get_from_path(&pb) {
+                Ok(tp) => match tp.filter(|t| t.matcher_type() == infer::MatcherType::Audio) {
+                    Some(_) => Some(Song {
+                        metadata: extract_metadata(&pb),
+                        path: pb,
+                    }),
+                    None => None,
+                },
+                Err(e) => {
+                    error!("Error getting file type: {e}");
+                    None
+                }
+            })
+            .collect();
+
+        Self {
+            queue: queue,
             current_idx: 0,
         }
     }
