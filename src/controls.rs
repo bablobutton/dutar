@@ -28,7 +28,7 @@ fn get_source(reader: BufReader<File>) -> Option<Decoder<BufReader<File>>> {
         .ok()
 }
 
-fn load_and_play(model: &mut Model) -> Result<()> {
+fn load_song(model: &mut Model) -> Result<()> {
     let song = model
         .queue
         .get_current_song()
@@ -43,8 +43,17 @@ fn load_and_play(model: &mut Model) -> Result<()> {
         .audio
         .sink
         .append(create_callback_source_play_next(model.channel.tx.clone()));
-    model.audio.sink.play(); // because clear() paused
     Ok(())
+}
+
+fn load_and_play(model: &mut Model) -> Result<()> {
+    load_song(model)?;
+    model.audio.sink.play(); // because sink.clear() pauses
+    Ok(())
+}
+
+pub fn load_and_not_play(model: &mut Model) -> Result<()> {
+    load_song(model)
 }
 
 // rodio does not support hooks on sound end,
@@ -99,6 +108,14 @@ pub fn backward_seconds(model: &mut Model, seconds: u64) {
 
 pub fn get_current_duration(model: &Model) -> Duration {
     model.audio.sink.get_pos()
+}
+
+pub fn set_current_duration(model: &Model, duration: Duration) {
+    let sink = &model.audio.sink;
+    if let Err(e) = sink.try_seek(duration) {
+        error!("{e}");
+    }
+    debug!("Set current duration to {duration:?}");
 }
 
 pub fn get_current_song_total_duration(model: &Model) -> Option<Duration> {

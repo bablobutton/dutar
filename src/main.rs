@@ -54,6 +54,7 @@ impl Model {
         };
 
         Self::restore_saved_state(&mut model);
+        Self::load_current_song(&mut model);
 
         Ok(model)
     }
@@ -63,11 +64,20 @@ impl Model {
         model
             .queue
             .set_current_song_idx(model.saved_state.current_song_index);
+        controls::set_current_duration(model, model.saved_state.current_duration);
     }
 
     pub fn update_saved_state(&mut self) {
         self.saved_state.current_song_index = self.queue.get_current_idx().unwrap_or(0);
         self.saved_state.volume = controls::get_volume(self);
+        self.saved_state.current_duration = controls::get_current_duration(self);
+    }
+
+    fn load_current_song(&mut self) {
+        match controls::load_and_not_play(self) {
+            Ok(_) => {}
+            Err(e) => error!("Error loading song on init: {e}"),
+        }
     }
 }
 
@@ -94,6 +104,7 @@ enum AppState {
 struct SavedState {
     volume: f32,
     current_song_index: usize,
+    current_duration: Duration,
 }
 
 #[derive(Debug, PartialEq, Eq)]

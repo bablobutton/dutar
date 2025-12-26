@@ -5,7 +5,7 @@ use color_eyre::{Result, eyre::OptionExt};
 use dirs::data_dir;
 use log::{debug, error};
 use rusqlite::{Connection, params};
-use std::{fs, path::PathBuf};
+use std::{fs, path::PathBuf, time::Duration};
 
 pub struct DB {
     conn: Connection,
@@ -48,9 +48,14 @@ impl DB {
     }
 
     pub fn read_saved_state(&self) -> Result<SavedState> {
-        let mut sql = self
-            .conn
-            .prepare("SELECT volume, current_song_index FROM saved_state")?;
+        let mut sql = self.conn.prepare(
+            r"
+            SELECT
+                volume,
+                current_song_index,
+                current_duration_ms
+            FROM saved_state",
+        )?;
         let mut rows = sql.query([])?;
         let row = rows
             .next()?
@@ -58,11 +63,14 @@ impl DB {
 
         let volume: f32 = row.get(0)?;
         let current_song_index: usize = row.get(1)?;
+        let current_duration: Duration = Duration::from_millis(row.get(2)?);
 
         let saved_state = SavedState {
             volume,
             current_song_index,
+            current_duration,
         };
+
         debug!("Read saved_state: {:?}", saved_state);
 
         Ok(saved_state)
@@ -71,8 +79,18 @@ impl DB {
     pub fn write_saved_state(&self, saved_state: &SavedState) -> Result<()> {
         debug!("Write saved_state: {:?}", saved_state);
         self.conn.execute(
-            "UPDATE saved_state SET volume = ?, current_song_index = ? WHERE id = 1",
-            params![saved_state.volume, saved_state.current_song_index],
+            r"
+        UPDATE saved_state SET
+            volume = ?,
+            current_song_index = ?,
+            current_duration_ms = ?
+        WHERE id = 1
+        ",
+            params![
+                saved_state.volume,
+                saved_state.current_song_index,
+                saved_state.current_duration.as_millis() as u64,
+            ],
         )?;
         Ok(())
     }
