@@ -58,5 +58,11 @@ Windows: C:\Users\<user>\AppData\Roaming\dutar\dutar.log
 Example: `LOG_PATH=/tmp/my_logs.log dutar`
 Logs are only written in debug build.
 
+## Development notes
+- [cargo-udeps](https://lib.rs/crates/cargo-udeps) can be used for detecting unused dependencies in Cargo.toml.
+- A pre-commit hook is configured that won't let you commit if the code is unformatted.
+- A pre-push hook is configured that won't let you push if tests don't pass.
+- Thoughts on future development are in `todo.md`.
+
 ## Fun facts 
 Named after the **dutar** - a traditional Turkmen two-stringed instrument.
