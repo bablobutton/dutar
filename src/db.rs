@@ -4,7 +4,7 @@ use crate::SavedState;
 use color_eyre::{Result, eyre::OptionExt};
 use dirs::data_dir;
 use log::debug;
-use rusqlite::Connection;
+use rusqlite::{Connection, params};
 use std::fs;
 
 pub struct DB {
@@ -28,14 +28,12 @@ impl DB {
 
         // Create db tables for the first time.
         // If you need to add a fresh new table, add it below.
-        // If you need to change the existing tables, you should do the following:
-        // 1. Update the initial creation script below (this won't affect anything if the table already exists).
-        // 2. Add an equivalent migration script to migrations.rs
+        // If you need to change existing tables, you should ONLY use migrations (migrations.rs).
+        // Do NOT add new columns here - they will conflict with migrations on fresh installs.
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS saved_state (
                 id INTEGER PRIMARY KEY CHECK (id = 1),
-                volume REAL NOT NULL DEFAULT 1.0,
-                current_song_index INTEGER NOT NULL DEFAULT 0
+                volume REAL NOT NULL DEFAULT 1.0
             );
             CREATE TABLE IF NOT EXISTS queue_songs (
                 id INTEGER PRIMARY KEY,
@@ -54,21 +52,31 @@ impl DB {
     }
 
     pub fn read_saved_state(&self) -> Result<SavedState> {
-        let mut sql = self.conn.prepare("SELECT volume FROM saved_state")?;
+        let mut sql = self
+            .conn
+            .prepare("SELECT volume, current_song_index FROM saved_state")?;
         let mut rows = sql.query([])?;
         let row = rows
             .next()?
             .ok_or_eyre("1st row of saved_data should exist")?;
 
         let volume: f32 = row.get(0)?;
+        let current_song_index: usize = row.get(1)?;
 
-        Ok(SavedState { volume })
+        let saved_state = SavedState {
+            volume,
+            current_song_index,
+        };
+        debug!("Read saved_state: {:?}", saved_state);
+
+        Ok(saved_state)
     }
 
     pub fn write_saved_state(&self, saved_state: &SavedState) -> Result<()> {
+        debug!("Write saved_state: {:?}", saved_state);
         self.conn.execute(
-            "UPDATE saved_state SET volume = ? WHERE id = 1",
-            [saved_state.volume],
+            "UPDATE saved_state SET volume = ?, current_song_index = ? WHERE id = 1",
+            params![saved_state.volume, saved_state.current_song_index],
         )?;
         Ok(())
     }
