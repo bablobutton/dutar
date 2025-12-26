@@ -148,6 +148,8 @@ fn main() -> Result<()> {
     logging::init();
     color_eyre::install()?;
     let mut terminal = ratatui::init();
+
+    // app initialization, db creation/migrations, saved state restoration
     let mut model = Model::init()?;
 
     // main event loop, see ELM https://ratatui.rs/concepts/application-patterns/the-elm-architecture/

@@ -1,3 +1,5 @@
+mod migrations;
+
 use crate::SavedState;
 use color_eyre::{Result, eyre::OptionExt};
 use dirs::data_dir;
@@ -22,15 +24,31 @@ impl DB {
         }
         db_path.push("dutar.db");
 
-        let conn = Connection::open(db_path)?;
+        let mut conn = Connection::open(db_path)?;
 
+        // Create db tables for the first time.
+        // If you need to add a fresh new table, add it below.
+        // If you need to change the existing tables, you should do the following:
+        // 1. Update the initial creation script below (this won't affect anything if the table already exists).
+        // 2. Add an equivalent migration script to migrations.rs
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS saved_state (
                 id INTEGER PRIMARY KEY CHECK (id = 1),
-                volume REAL NOT NULL DEFAULT 1.0
+                volume REAL NOT NULL DEFAULT 1.0,
+                current_song_index INTEGER NOT NULL DEFAULT 0
             );
-            INSERT OR IGNORE INTO saved_state (id, volume) VALUES (1, 1.0);",
+            CREATE TABLE IF NOT EXISTS queue_songs (
+                id INTEGER PRIMARY KEY,
+                file_path TEXT NOT NULL,
+                title TEXT,
+                artist TEXT,
+                album TEXT,
+                duration INTEGER
+            );
+            INSERT OR IGNORE INTO saved_state (id) VALUES (1);",
         )?;
+
+        migrations::migrate(&mut conn)?;
 
         Ok(DB { conn })
     }
