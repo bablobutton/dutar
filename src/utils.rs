@@ -45,25 +45,33 @@ pub fn extract_metadata(path: &Path) -> Option<Metadata> {
 
     let tag = tagged_file
         .primary_tag()
-        .or_else(|| tagged_file.first_tag())?;
+        .or_else(|| tagged_file.first_tag());
 
-    Some(Metadata {
-        title: tag.title().map(|s| s.to_string()).unwrap_or_else(|| {
-            path.file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("Unknown")
-                .to_string()
+    match tag {
+        Some(t) => Some(Metadata {
+            title: t.title().map(|s| s.to_string()).unwrap_or_else(|| {
+                path.file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("Unknown")
+                    .to_string()
+            }),
+            artist: t
+                .artist()
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| "Unknown Artist".to_string()),
+            album: t
+                .album()
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| "Unknown Album".to_string()),
+            duration_seconds: tagged_file.properties().duration().as_secs(),
         }),
-        artist: tag
-            .artist()
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| "Unknown Artist".to_string()),
-        album: tag
-            .album()
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| "Unknown Album".to_string()),
-        duration_seconds: tagged_file.properties().duration().as_secs(),
-    })
+        None => Some(Metadata {
+            title: "Unknown".to_string(),
+            artist: "Unknown Artist".to_string(),
+            album: "Unknown Album".to_string(),
+            duration_seconds: tagged_file.properties().duration().as_secs(),
+        }),
+    }
 }
 
 pub fn count_digits(num: u64) -> usize {
