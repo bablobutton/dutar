@@ -8,6 +8,7 @@ use ratatui::{
     Frame,
     widgets::{Block, Borders, Row, Table, TableState},
 };
+use std::ffi::OsStr;
 
 const SCROLL_PADDING: usize = 3;
 
@@ -64,6 +65,17 @@ pub fn render_queue(model: &mut Model, frame: &mut Frame, chunk: Rect) {
                     (filename, "", "", String::new())
                 }
             };
+
+            let artist = if artist.is_empty() {
+                song.path
+                    .file_name()
+                    .unwrap_or(OsStr::new("Unknown"))
+                    .to_str()
+                    .unwrap_or("")
+            } else {
+                artist
+            };
+
             Row::new(vec![
                 artist.to_string(),
                 title.to_string(),

@@ -52,23 +52,23 @@ pub fn extract_metadata(path: &Path) -> Option<Metadata> {
             title: t.title().map(|s| s.to_string()).unwrap_or_else(|| {
                 path.file_stem()
                     .and_then(|s| s.to_str())
-                    .unwrap_or("Unknown")
+                    .unwrap_or("")
                     .to_string()
             }),
             artist: t
                 .artist()
                 .map(|s| s.to_string())
-                .unwrap_or_else(|| "Unknown Artist".to_string()),
+                .unwrap_or_else(|| "".to_string()),
             album: t
                 .album()
                 .map(|s| s.to_string())
-                .unwrap_or_else(|| "Unknown Album".to_string()),
+                .unwrap_or_else(|| "".to_string()),
             duration_seconds: tagged_file.properties().duration().as_secs(),
         }),
         None => Some(Metadata {
-            title: "Unknown".to_string(),
-            artist: "Unknown Artist".to_string(),
-            album: "Unknown Album".to_string(),
+            title: "".to_string(),
+            artist: "".to_string(),
+            album: "".to_string(),
             duration_seconds: tagged_file.properties().duration().as_secs(),
         }),
     }
