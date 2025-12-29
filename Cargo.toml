@@ -6,7 +6,7 @@ authors = ["Ata Altyyev <altyew44@gmail.com>", "Konstantin Dal <email@email.com>
 edition = "2024"
 
 [dependencies]
-ratatui = "0.29.0"
+ratatui = "0.30.0"
 color-eyre = { version = "0.6.3", default-features = false }
 symphonia = "0.5"
 rodio = "0.21.1"
