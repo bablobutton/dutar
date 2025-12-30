@@ -2,7 +2,7 @@
 
 use crate::{BarType, Model, Popup};
 use ratatui::Frame;
-use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::layout::{Constraint, Rect};
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
@@ -41,25 +41,17 @@ fn render_command_bar(model: &Model, frame: &mut Frame, area: Rect) {
 }
 
 fn bar_area(r: Rect) -> Rect {
-    // Create vertical layout with popup centered between top and bottom margins
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Fill(1),
-            Constraint::Length(2),
-            Constraint::Fill(3),
-        ])
-        .split(r);
+    const BAR_HEIGHT: u16 = 2;
+    const BAR_WIDTH: u16 = 70;
 
-    // Create horizontal layout with popup centered between left and right margins
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Ratio(1, 4),
-            Constraint::Fill(1),
-            Constraint::Max(70),
-            Constraint::Fill(1),
-            Constraint::Ratio(1, 4),
-        ])
-        .split(popup_layout[1])[2] // Take the middle section
+    // Position the bar 1/4 from the top (not center)
+    let vertical_offset = r.height / 4;
+    let centered_horizontally = r.centered_horizontally(Constraint::Length(BAR_WIDTH.min(r.width)));
+
+    Rect {
+        x: centered_horizontally.x,
+        y: r.y + vertical_offset,
+        width: centered_horizontally.width,
+        height: BAR_HEIGHT.min(r.height.saturating_sub(vertical_offset)),
+    }
 }

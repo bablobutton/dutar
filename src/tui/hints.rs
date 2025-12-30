@@ -42,10 +42,10 @@ pub fn render_hints_popup(model: &Model, frame: &mut Frame, area: Rect) {
     frame.render_widget(Clear, popup_area); // Clear the background first
 
     // Split area into left and right halves
-    let halves = Layout::default()
+    let [hotkey_area, command_area] = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
-        .split(popup_area);
+        .areas(popup_area);
 
     // Render hotkeys on the left
     let mut hotkey_items = Vec::<ListItem>::new();
@@ -65,7 +65,7 @@ pub fn render_hints_popup(model: &Model, frame: &mut Frame, area: Rect) {
         .title("Hotkeys");
 
     let hotkey_list = List::new(hotkey_items).block(hotkey_block);
-    frame.render_widget(hotkey_list, halves[0]);
+    frame.render_widget(hotkey_list, hotkey_area);
 
     // Render commands on the right
     let mut command_items = Vec::<ListItem>::new();
@@ -85,7 +85,7 @@ pub fn render_hints_popup(model: &Model, frame: &mut Frame, area: Rect) {
         .title("Commands");
 
     let command_list = List::new(command_items).block(command_block);
-    frame.render_widget(command_list, halves[1]);
+    frame.render_widget(command_list, command_area);
 }
 
 fn hints_area(hotkey_pairs: &[[&str; 2]], command_pairs: &[[&str; 2]], r: Rect) -> Rect {
@@ -110,31 +110,16 @@ fn hints_area(hotkey_pairs: &[[&str; 2]], command_pairs: &[[&str; 2]], r: Rect) 
 
     // Width: 2/3 of available area by default, but expand if content needs more
     let default_width = (r.width * 2) / 3;
-    let popup_width = needed_width.max(default_width);
+    let popup_width = needed_width.max(default_width).min(r.width);
 
     // Height: 1/3 of available area by default, but expand if content needs more
     let default_height = r.height / 3;
     let max_items = hotkey_pairs.len().max(command_pairs.len()) as u16;
     let needed_height = max_items + BORDER_WIDTH; // +2 for borders
-    let popup_height = needed_height.max(default_height);
+    let popup_height = needed_height.max(default_height).min(r.height);
 
-    // Create vertical layout with popup centered between top and bottom margins
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Fill(1),              // Top margin
-            Constraint::Length(popup_height), // Popup height
-            Constraint::Fill(1),              // Bottom margin
-        ])
-        .split(r);
-
-    // Create horizontal layout with popup centered between left and right margins
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Fill(1),             // Left margin
-            Constraint::Length(popup_width), // Popup width
-            Constraint::Fill(1),             // Right margin
-        ])
-        .split(popup_layout[1])[1] // Take the middle section (index 1)
+    r.centered(
+        Constraint::Length(popup_width),
+        Constraint::Length(popup_height),
+    )
 }

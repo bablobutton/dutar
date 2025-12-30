@@ -8,17 +8,17 @@ use ratatui::widgets::{LineGauge, Paragraph, Widget};
 use ratatui::{Frame, symbols};
 
 pub fn render_footer(model: &Model, frame: &mut Frame, area: Rect) {
-    let rows = Layout::default()
+    let [status_area, bars_area] = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(1), // Line 1: song info
             Constraint::Length(1), // Line 2: volume and progress
         ])
         .horizontal_margin(1)
-        .split(area);
+        .areas(area);
 
-    render_playing_status(model, frame, rows[0]);
-    render_bars(model, frame, rows[1]);
+    render_playing_status(model, frame, status_area);
+    render_bars(model, frame, bars_area);
 }
 
 fn render_playing_status(model: &Model, frame: &mut Frame, area: Rect) {
@@ -84,17 +84,17 @@ fn render_playing_status(model: &Model, frame: &mut Frame, area: Rect) {
 }
 
 fn render_bars(model: &Model, frame: &mut Frame, area: Rect) {
-    let bars = Layout::default()
+    let [progress_area, volume_area] = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
             Constraint::Percentage(70), // progress bar
             Constraint::Percentage(30), // volume bar
         ])
         .spacing(1)
-        .split(area);
+        .areas(area);
 
-    render_progress_bar(model, frame, bars[0]);
-    render_volume_bar(model, frame, bars[1]);
+    render_progress_bar(model, frame, progress_area);
+    render_volume_bar(model, frame, volume_area);
 }
 
 fn render_progress_bar(model: &Model, frame: &mut Frame, area: Rect) {
@@ -122,8 +122,8 @@ fn render_progress_bar(model: &Model, frame: &mut Frame, area: Rect) {
 
     LineGauge::default()
         .ratio(ratio)
+        .filled_symbol(symbols::line::HEAVY_QUADRUPLE_DASH_HORIZONTAL)
         .filled_style(Style::default().fg(Color::Yellow))
-        .line_set(symbols::line::THICK)
         .label(label)
         .render(area, frame.buffer_mut());
 }
@@ -133,7 +133,7 @@ fn render_volume_bar(model: &Model, frame: &mut Frame, area: Rect) {
 
     LineGauge::default()
         .ratio(ratio)
+        .filled_symbol(symbols::line::HEAVY_QUADRUPLE_DASH_HORIZONTAL)
         .filled_style(Style::default().fg(Color::Yellow))
-        .line_set(symbols::line::THICK)
         .render(area, frame.buffer_mut());
 }

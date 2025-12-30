@@ -12,7 +12,6 @@
 * Notification system (at least for errors that worth showing to user).
 * Album cover -> ASCII art
 * Exponential (or quadradtic) skipping intervals when holding skip button (J or L). Example: holding L should skip forward 1s, 2s, 4s, 8s, 16s...
-* Panic hook so that crashed app doesn't break the terminal.
 * Set duration on number keys like youtube: 0 -> start of song, 1 -> 10%, 2 -> 20%, ...
 * Layout-agnostic keypresses. Bind actions to keys, not characters. So hotkeys still work in Russian layout.
 * Double Ctrl+C to quit the app instead of 'q' with a warning after the first hit.
