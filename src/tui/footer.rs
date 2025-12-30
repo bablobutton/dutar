@@ -40,15 +40,45 @@ fn render_playing_status(model: &Model, frame: &mut Frame, area: Rect) {
         _ => "Paused",
     };
 
-    let line = Line::from(vec![
-        Span::raw(state_text),
-        Span::raw(" "),
-        Span::styled(title, Style::default().fg(Color::Yellow)),
-        Span::raw(" by "),
-        Span::styled(artist, Style::default().fg(Color::Yellow)),
-        Span::raw(" from "),
-        Span::styled(album, Style::default().fg(Color::Yellow)),
-    ]);
+    let mut span_vec = Vec::<Span>::new();
+    if model.queue.is_empty() {
+        span_vec.push(Span::raw("Queue is empty"));
+    } else {
+        span_vec.push(Span::raw(state_text));
+        span_vec.push(Span::raw(" "));
+        if title.is_empty() && artist.is_empty() && album.is_empty() {
+            span_vec.push(Span::styled(
+                "Unknown song",
+                Style::default().fg(Color::Yellow),
+            ));
+        } else {
+            let title = if title.is_empty() {
+                "Unknown".to_string()
+            } else {
+                title
+            };
+
+            let artist = if artist.is_empty() {
+                "Unknown".to_string()
+            } else {
+                artist
+            };
+
+            let album = if album.is_empty() {
+                "Unknown".to_string()
+            } else {
+                album
+            };
+
+            span_vec.push(Span::styled(title, Style::default().fg(Color::Yellow)));
+            span_vec.push(Span::raw(" by "));
+            span_vec.push(Span::styled(artist, Style::default().fg(Color::Yellow)));
+            span_vec.push(Span::raw(" from "));
+            span_vec.push(Span::styled(album, Style::default().fg(Color::Yellow)));
+        }
+    }
+
+    let line = Line::from(span_vec);
 
     frame.render_widget(Paragraph::new(line), area);
 }

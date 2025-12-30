@@ -1,5 +1,8 @@
 use crate::{Message, Model};
-use color_eyre::{Result, eyre::OptionExt};
+use color_eyre::{
+    Result,
+    eyre::{OptionExt, eyre},
+};
 use log::{debug, error, info};
 use rodio::{Decoder, decoder::DecoderBuilder, source::EmptyCallback};
 use std::fs::File;
@@ -32,7 +35,7 @@ fn load_song(model: &mut Model) -> Result<()> {
     let song = model
         .queue
         .get_current_song()
-        .ok_or_eyre("No song to play")?;
+        .ok_or_eyre("Error getting current song")?;
     debug!("Loading from {} and playing", song.path.display());
     let file = File::open(song.path.as_path())?;
     let reader = BufReader::with_capacity(1024 * 1024 * 5, file);
@@ -70,18 +73,26 @@ fn create_callback_source_play_next(tx: Sender<Message>) -> EmptyCallback {
     }))
 }
 
-pub fn play_next(model: &mut Model) {
-    model.queue.advance();
-    if let Err(e) = load_and_play(model) {
+pub fn play_next(model: &mut Model) -> Result<()> {
+    model.queue.advance()?;
+    while let Err(e) = load_and_play(model) {
         error!("Error playing next song: {e}");
+        model.queue.remove_current_song();
+        if model.queue.is_empty() {
+            return Err(eyre!("Queue is empty"));
+        }
     }
+    Ok(())
 }
 
-pub fn play_previous(model: &mut Model) {
-    model.queue.retreat();
-    if let Err(e) = load_and_play(model) {
+pub fn play_previous(model: &mut Model) -> Result<()> {
+    model.queue.retreat()?;
+    while let Err(e) = load_and_play(model) {
         error!("Error playing previous song: {e}");
+        model.queue.remove_current_song();
+        model.queue.retreat()?;
     }
+    Ok(())
 }
 
 pub fn forward_seconds(model: &mut Model, seconds: u64) {

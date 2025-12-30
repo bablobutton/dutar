@@ -308,13 +308,18 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
             None
         }
         Message::Next => {
-            controls::play_next(model);
-            model.app_state = AppState::Player(PlayerState::Playing);
+            match controls::play_next(model) {
+                Err(e) => error!("Error on message Next: {e}"),
+                Ok(()) => model.app_state = AppState::Player(PlayerState::Playing),
+            }
             None
         }
         Message::Previous => {
-            controls::play_previous(model);
-            model.app_state = AppState::Player(PlayerState::Playing);
+            match controls::play_previous(model) {
+                Err(e) => error!("Error on message Previous: {e}"),
+                Ok(()) => model.app_state = AppState::Player(PlayerState::Playing),
+            }
+
             None
         }
         Message::VolumeUp => {

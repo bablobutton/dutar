@@ -26,20 +26,21 @@ pub struct Metadata {
 }
 
 impl SongQueue {
-    pub fn advance(&mut self) {
+    pub fn advance(&mut self) -> Result<()> {
         if self.queue.is_empty() {
-            return;
+            return Err(eyre!("Queue is empty!"));
         }
         self.current_idx += 1;
         // if no more songs, loop back to first song.
         // we'll distinguish between stop and loop back
         // later when we have that feature where user can toggle looping
         self.current_idx %= self.queue.len();
+        Ok(())
     }
 
-    pub fn retreat(&mut self) {
+    pub fn retreat(&mut self) -> Result<()> {
         if self.queue.is_empty() {
-            return;
+            return Err(eyre!("Queue is empty!"));
         }
 
         if self.current_idx == 0 {
@@ -48,6 +49,7 @@ impl SongQueue {
         } else {
             self.current_idx -= 1;
         }
+        Ok(())
     }
 
     pub fn get_current_idx(&self) -> Option<usize> {
@@ -70,6 +72,21 @@ impl SongQueue {
                 "Attempted to set song index [{idx}] bigger than queue size {}",
                 self.queue.len()
             );
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.queue.is_empty()
+    }
+
+    pub fn remove_current_song(&mut self) {
+        if self.current_idx < self.queue.len() {
+            self.queue.remove(self.current_idx);
+            if self.queue.is_empty() {
+                self.current_idx = 0;
+            } else {
+                self.current_idx %= self.queue.len();
+            }
         }
     }
 

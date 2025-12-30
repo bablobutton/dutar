@@ -1,6 +1,5 @@
 ## Rough plan of things to do in no particular order
 
-* Bug: play one song and delete another song from dutar dir. Need to detect when the song is missing and mark it as missing.
 * Support creating playlists.
 * Command bar.
     - dropdown with suggestions filtered by fuzzy search
