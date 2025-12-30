@@ -86,6 +86,14 @@ pub fn play_next(model: &mut Model) -> Result<()> {
 }
 
 pub fn play_previous(model: &mut Model) -> Result<()> {
+    // if duration is > 3 sec, restart song.
+    // otherwise, play previous
+    let curr_duration = get_current_duration(model);
+    if curr_duration > Duration::from_secs(3) {
+        set_current_duration(model, Duration::ZERO);
+        return Ok(());
+    }
+
     model.queue.retreat()?;
     while let Err(e) = load_and_play(model) {
         error!("Error playing previous song: {e}");

@@ -11,7 +11,6 @@
 * Shuffle, repeat
 * Notification system (at least for errors that worth showing to user).
 * Album cover -> ASCII art
-* If current duration is > 3 seconds, "previus" action should restart the song
 * Exponential (or quadradtic) skipping intervals when holding skip button (J or L). Example: holding L should skip forward 1s, 2s, 4s, 8s, 16s...
 * Panic hook so that crashed app doesn't break the terminal.
 * Set duration on number keys like youtube: 0 -> start of song, 1 -> 10%, 2 -> 20%, ...
