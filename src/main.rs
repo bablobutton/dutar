@@ -346,7 +346,7 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
             let vol = controls::get_volume(model);
             if vol != 0f32 {
                 model.saved_state.volume = vol;
-                controls::set_volume(model, 0f32);
+                controls::volume_off(model);
             }
             None
         }

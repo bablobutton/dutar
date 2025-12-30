@@ -168,6 +168,10 @@ pub fn get_volume(model: &Model) -> f32 {
     model.audio.sink.volume()
 }
 
+pub fn volume_off(model: &mut Model) {
+    model.audio.sink.set_volume(0f32);
+}
+
 pub fn set_volume(model: &mut Model, val: f32) {
     model.audio.sink.set_volume(val);
     model.saved_state.volume = val;
