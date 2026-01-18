@@ -35,16 +35,20 @@ fn apply_scroll_padding(table_state: &mut TableState, current_idx: Option<usize>
 }
 
 pub fn render_queue(model: &mut Model, frame: &mut Frame, chunk: Rect) {
-    let current_idx = model.queue.get_current_idx();
-    model.ui.song_queue_table.select(current_idx);
+    let display_songs = model.queue.get_display_songs();
+
+    let playing_real_idx = model.queue.get_current_idx();
+    let visual_selection_idx =
+        playing_real_idx.and_then(|real| display_songs.iter().position(|(idx, _)| *idx == real));
+
+    model.ui.song_queue_table.select(visual_selection_idx);
 
     let header = Row::new(vec!["Artist", "Title", "Album", "Duration"])
         .style(Style::default().fg(Color::Yellow));
 
-    let rows: Vec<Row> = model
-        .queue
+    let rows: Vec<Row> = display_songs
         .iter()
-        .map(|song| {
+        .map(|(_real_idx, song)| {
             let (artist, title, album, duration) = match &song.metadata {
                 Some(meta) => (
                     meta.artist.as_str(),
@@ -92,7 +96,7 @@ pub fn render_queue(model: &mut Model, frame: &mut Frame, chunk: Rect) {
         Constraint::Length(8),
     ];
 
-    let title = match model.queue.get_current_idx() {
+    let title = match visual_selection_idx {
         Some(idx) => format!("{}/{}", idx + 1, rows.len()),
         None => format!("_/{}", rows.len()),
     };
@@ -107,7 +111,7 @@ pub fn render_queue(model: &mut Model, frame: &mut Frame, chunk: Rect) {
         )
         .row_highlight_style(Style::default().fg(Color::Black).bg(Color::Yellow));
 
-    apply_scroll_padding(&mut model.ui.song_queue_table, current_idx, &chunk);
+    apply_scroll_padding(&mut model.ui.song_queue_table, visual_selection_idx, &chunk);
 
     frame.render_stateful_widget(table, chunk, &mut model.ui.song_queue_table);
 }

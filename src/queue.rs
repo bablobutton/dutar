@@ -3,12 +3,13 @@ use color_eyre::{Result, eyre::WrapErr, eyre::eyre};
 use dirs::{audio_dir, home_dir};
 use infer::get_from_path;
 use log::{debug, error, info};
-use std::fs;
+use std::fs::{self, metadata};
 use std::path::PathBuf;
 
 pub struct SongQueue {
     queue: Vec<Song>,
     current_idx: usize,
+    filtered_indices: Option<Vec<usize>>,
 }
 
 #[derive(Debug, Clone)]
@@ -30,11 +31,26 @@ impl SongQueue {
         if self.queue.is_empty() {
             return Err(eyre!("Queue is empty!"));
         }
-        self.current_idx += 1;
-        // if no more songs, loop back to first song.
-        // we'll distinguish between stop and loop back
-        // later when we have that feature where user can toggle looping
-        self.current_idx %= self.queue.len();
+
+        if let Some(indices) = &self.filtered_indices {
+            if indices.is_empty() {
+                return Ok(()); // Некуда переключать
+            }
+
+            if let Some(pos) = indices
+                .iter()
+                .position(|&real_idx| real_idx == self.current_idx)
+            {
+                let next_pos = (pos + 1) % indices.len();
+                self.current_idx = indices[next_pos];
+            } else {
+                self.current_idx = indices[0];
+            }
+        } else {
+            self.current_idx += 1;
+            self.current_idx %= self.queue.len();
+        }
+
         Ok(())
     }
 
@@ -43,11 +59,26 @@ impl SongQueue {
             return Err(eyre!("Queue is empty!"));
         }
 
-        if self.current_idx == 0 {
-            // loop forward
-            self.current_idx = self.queue.len() - 1;
+        if let Some(indices) = &self.filtered_indices {
+            if indices.is_empty() {
+                return Ok(());
+            }
+
+            if let Some(pos) = indices
+                .iter()
+                .position(|&real_idx| real_idx == self.current_idx)
+            {
+                let prev_pos = if pos == 0 { indices.len() - 1 } else { pos - 1 };
+                self.current_idx = indices[prev_pos];
+            } else {
+                self.current_idx = indices[indices.len() - 1];
+            }
         } else {
-            self.current_idx -= 1;
+            if self.current_idx == 0 {
+                self.current_idx = self.queue.len() - 1;
+            } else {
+                self.current_idx -= 1;
+            }
         }
         Ok(())
     }
@@ -118,6 +149,7 @@ impl SongQueue {
         Self {
             queue: songs,
             current_idx: 0,
+            filtered_indices: None,
         }
     }
 
@@ -146,6 +178,7 @@ impl SongQueue {
         Self {
             queue: queue,
             current_idx: 0,
+            filtered_indices: None,
         }
     }
 
@@ -159,6 +192,7 @@ impl SongQueue {
         Ok(Self {
             queue: songs,
             current_idx: 0,
+            filtered_indices: None,
         })
     }
 
@@ -216,5 +250,55 @@ impl SongQueue {
 
     pub fn iter(&self) -> impl Iterator<Item = &Song> {
         self.queue.iter()
+    }
+
+    pub fn set_filter(&mut self, query: &str) {
+        if query.is_empty() {
+            self.filtered_indices = None;
+            return;
+        }
+
+        let query = query.to_lowercase();
+        let indices: Vec<usize> = self
+            .queue
+            .iter()
+            .enumerate()
+            .filter(|(_, song)| {
+                // 1. Check Metadata if available
+                if let Some(meta) = &song.metadata {
+                    if meta.title.to_lowercase().contains(&query) {
+                        return true;
+                    }
+                    if meta.artist.to_lowercase().contains(&query) {
+                        return true;
+                    }
+                    if meta.album.to_lowercase().contains(&query) {
+                        return true;
+                    }
+                }
+
+                // 2. Fallback to filename
+                if let Some(name) = song.path.file_name() {
+                    if name.to_string_lossy().to_lowercase().contains(&query) {
+                        return true;
+                    }
+                }
+
+                false
+            })
+            .map(|(idx, _)| idx)
+            .collect();
+
+        self.filtered_indices = Some(indices);
+    }
+
+    pub fn get_display_songs(&self) -> Vec<(usize, &Song)> {
+        match &self.filtered_indices {
+            Some(indices) => indices
+                .iter()
+                .filter_map(|&i| self.queue.get(i).map(|song| (i, song)))
+                .collect(),
+            None => self.queue.iter().enumerate().collect(),
+        }
     }
 }

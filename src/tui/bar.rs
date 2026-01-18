@@ -14,7 +14,7 @@ pub fn render_bar_popup(model: &Model, frame: &mut Frame, area: Rect) {
 
     match &bar_state.bar_type {
         BarType::Command => render_command_bar(model, frame, area),
-        // BarType::Search => render_search_bar(model, frame, area),
+        BarType::Search => render_search_bar(model, frame, area),
     };
 }
 
@@ -31,7 +31,29 @@ fn render_command_bar(model: &Model, frame: &mut Frame, area: Rect) {
 
     let paragraph = Paragraph::new(Line::from(vec![
         Span::from("   > "),
-        Span::styled(input.clone(), Style::default().fg(Color::White)),
+        Span::styled(input.clone(), Style::default().fg(Color::Yellow)),
+    ]))
+    .block(block);
+
+    let popup_area = bar_area(area);
+    frame.render_widget(Clear, popup_area);
+    frame.render_widget(paragraph, popup_area);
+}
+
+fn render_search_bar(model: &Model, frame: &mut Frame, area: Rect) {
+    let Some(Popup::Bar(search_bar)) = &model.popup else {
+        unreachable!();
+    };
+
+    let input = &search_bar.input;
+
+    let block = Block::default()
+        .borders(Borders::BOTTOM)
+        .style(Style::default());
+
+    let paragraph = Paragraph::new(Line::from(vec![
+        Span::from("   ?> "),
+        Span::styled(input.clone(), Style::default().fg(Color::Yellow)),
     ]))
     .block(block);
 

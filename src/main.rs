@@ -143,7 +143,7 @@ enum Popup {
 #[derive(Debug, PartialEq)]
 enum BarType {
     Command,
-    // Search,
+    Search,
 }
 
 #[derive(Debug, PartialEq)]
@@ -178,6 +178,9 @@ enum Message {
     Unmute,
     EraseChar,
     OpenHint,
+    OpenSearchBar,
+    ClearSearch,
+    PlayFromSearch(usize),
 }
 
 fn main() -> Result<()> {
@@ -247,7 +250,10 @@ fn handle_key(key: event::KeyEvent, model: &Model) -> Option<Message> {
             event::KeyCode::Char(_) => handle_hotkey(key.code),
             _ => None,
         },
-        None => handle_hotkey(key.code),
+        None => match key.code {
+            event::KeyCode::Esc => Some(Message::ClearSearch),
+            _ => handle_hotkey(key.code),
+        },
     }
 }
 
@@ -264,6 +270,7 @@ fn handle_hotkey(keycode: event::KeyCode) -> Option<Message> {
         event::KeyCode::Char('=') | event::KeyCode::Char('+') => Some(Message::VolumeUp),
         event::KeyCode::Char('-') | event::KeyCode::Char('_') => Some(Message::VolumeDown),
         event::KeyCode::Char('?') => Some(Message::OpenHint),
+        event::KeyCode::Char('/') => Some(Message::OpenSearchBar),
         _ => None,
     }
 }
@@ -385,7 +392,12 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
                 "SendCharToPopup shouldn't be sent if there's no popup open"
             );
             if let Some(Popup::Bar(bar_state)) = &mut model.popup {
-                bar_state.input.push(c)
+                bar_state.input.push(c);
+
+                if bar_state.bar_type == BarType::Search {
+                    // Implement search
+                    model.queue.set_filter(&bar_state.input);
+                }
             };
             None
         }
@@ -397,12 +409,45 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
             if let Some(Popup::Bar(bar_state)) = &mut model.popup {
                 if !bar_state.input.is_empty() {
                     bar_state.input.pop();
+
+                    if bar_state.bar_type == BarType::Search {
+                        model.queue.set_filter(&bar_state.input);
+                    }
                 }
             }
             None
         }
         Message::OpenHint => {
             model.popup = Some(Popup::Hint);
+            None
+        }
+        Message::OpenSearchBar => {
+            model.popup = Some(Popup::Bar(BarState {
+                input: String::new(),
+                bar_type: BarType::Search,
+            }));
+            None
+        }
+        Message::ClearSearch => {
+            model.queue.set_filter("");
+            let curr_idx = model.queue.get_current_idx();
+            model.ui.song_queue_table.select(curr_idx);
+            None
+        }
+        Message::PlayFromSearch(idx) => {
+            model.queue.set_current_song_idx(idx);
+
+            model.audio.sink.stop();
+
+            if let Err(e) = controls::load_and_not_play(model) {
+                log::error!("Failed to load song: {}", e);
+            }
+
+            match controls::play(model) {
+                Ok(_) => model.app_state = AppState::Player(PlayerState::Playing),
+                Err(e) => log::error!("Failed to play: {}", e),
+            }
+
             None
         }
     };
@@ -415,18 +460,35 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
 
 fn handle_popup_submit(model: &mut Model) -> Option<Message> {
     let Some(popup) = &model.popup else {
-        unreachable!();
+        return None;
     };
 
     let ret = match popup {
         Popup::Bar(bar) => match bar.bar_type {
             BarType::Command => handle_command(model),
-            // BarType::Search => handle_search(model),
+            BarType::Search => {
+                let target_index = model
+                    .queue
+                    .get_display_songs()
+                    .first()
+                    .map(|(real_idx, _)| *real_idx);
+
+                model.popup = None;
+
+                if let Some(idx) = target_index {
+                    Some(Message::PlayFromSearch(idx))
+                } else {
+                    None
+                }
+            }
         },
         Popup::Hint => None,
     };
 
-    model.popup = None;
+    if model.popup.is_some() {
+        model.popup = None;
+    }
+
     ret
 }
 
