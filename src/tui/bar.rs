@@ -31,7 +31,7 @@ fn render_command_bar(model: &Model, frame: &mut Frame, area: Rect) {
 
     let paragraph = Paragraph::new(Line::from(vec![
         Span::from("   > "),
-        Span::styled(input.clone(), Style::default().fg(Color::White)),
+        Span::styled(input.clone(), Style::default().fg(Color::Yellow)),
     ]))
     .block(block);
 
@@ -41,19 +41,19 @@ fn render_command_bar(model: &Model, frame: &mut Frame, area: Rect) {
 }
 
 fn render_search_bar(model: &Model, frame: &mut Frame, area: Rect) {
-    let Some(Popup::Bar(command_bar)) = &model.popup else {
+    let Some(Popup::Bar(search_bar)) = &model.popup else {
         unreachable!();
     };
 
-    let input = &command_bar.input;
+    let input = &search_bar.input;
 
     let block = Block::default()
         .borders(Borders::BOTTOM)
         .style(Style::default());
 
     let paragraph = Paragraph::new(Line::from(vec![
-        Span::from("   > "),
-        Span::styled(input.clone(), Style::default().fg(Color::White)),
+        Span::from("   ?> "),
+        Span::styled(input.clone(), Style::default().fg(Color::Yellow)),
     ]))
     .block(block);
 
@@ -61,6 +61,7 @@ fn render_search_bar(model: &Model, frame: &mut Frame, area: Rect) {
     frame.render_widget(Clear, popup_area);
     frame.render_widget(paragraph, popup_area);
 }
+
 fn bar_area(r: Rect) -> Rect {
     const BAR_HEIGHT: u16 = 2;
     const BAR_WIDTH: u16 = 70;
