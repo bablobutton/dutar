@@ -387,7 +387,11 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
                 "SendCharToPopup shouldn't be sent if there's no popup open"
             );
             if let Some(Popup::Bar(bar_state)) = &mut model.popup {
-                bar_state.input.push(c)
+                bar_state.input.push(c);
+
+                if bar_state.bar_type = BarType::Search {
+                    // Implement search
+                }
             };
             None
         }

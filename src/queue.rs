@@ -3,12 +3,13 @@ use color_eyre::{Result, eyre::WrapErr, eyre::eyre};
 use dirs::{audio_dir, home_dir};
 use infer::get_from_path;
 use log::{debug, error, info};
-use std::fs;
+use std::fs::{self, metadata};
 use std::path::PathBuf;
 
 pub struct SongQueue {
     queue: Vec<Song>,
     current_idx: usize,
+    filtered_indices: Option<Vec<usize>>,
 }
 
 #[derive(Debug, Clone)]
@@ -118,6 +119,7 @@ impl SongQueue {
         Self {
             queue: songs,
             current_idx: 0,
+            filtered_indices: None,
         }
     }
 
@@ -146,6 +148,7 @@ impl SongQueue {
         Self {
             queue: queue,
             current_idx: 0,
+            filtered_indices: None,
         }
     }
 
@@ -159,6 +162,7 @@ impl SongQueue {
         Ok(Self {
             queue: songs,
             current_idx: 0,
+            filtered_indices: None,
         })
     }
 
@@ -216,5 +220,45 @@ impl SongQueue {
 
     pub fn iter(&self) -> impl Iterator<Item = &Song> {
         self.queue.iter()
+    }
+
+    pub fn set_filter(&mut self, query: &str) {
+        if query.is_empty() {
+            self.filtered_indices = None;
+            return;
+        }
+
+        let query = query.to_lowercase();
+        let indices: Vec<usize> = self
+            .queue
+            .iter()
+            .enumerate()
+            .filter(|(_, song)| {
+                // 1. Check Metadata if available
+                if let Some(meta) = &song.metadata {
+                    if meta.title.to_lowercase().contains(&query) {
+                        return true;
+                    }
+                    if meta.artist.to_lowercase().contains(&query) {
+                        return true;
+                    }
+                    if meta.album.to_lowercase().contains(&query) {
+                        return true;
+                    }
+                }
+
+                // 2. Fallback to filename
+                if let Some(name) = song.path.file_name() {
+                    if name.to_string_lossy().to_lowercase().contains(&query) {
+                        return true;
+                    }
+                }
+
+                false
+            })
+            .map(|(idx, _)| idx)
+            .collect();
+
+        self.filtered_indices = Some(indices);
     }
 }
