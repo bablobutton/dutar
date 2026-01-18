@@ -31,11 +31,26 @@ impl SongQueue {
         if self.queue.is_empty() {
             return Err(eyre!("Queue is empty!"));
         }
-        self.current_idx += 1;
-        // if no more songs, loop back to first song.
-        // we'll distinguish between stop and loop back
-        // later when we have that feature where user can toggle looping
-        self.current_idx %= self.queue.len();
+
+        if let Some(indices) = &self.filtered_indices {
+            if indices.is_empty() {
+                return Ok(()); // Некуда переключать
+            }
+
+            if let Some(pos) = indices
+                .iter()
+                .position(|&real_idx| real_idx == self.current_idx)
+            {
+                let next_pos = (pos + 1) % indices.len();
+                self.current_idx = indices[next_pos];
+            } else {
+                self.current_idx = indices[0];
+            }
+        } else {
+            self.current_idx += 1;
+            self.current_idx %= self.queue.len();
+        }
+
         Ok(())
     }
 
@@ -44,11 +59,26 @@ impl SongQueue {
             return Err(eyre!("Queue is empty!"));
         }
 
-        if self.current_idx == 0 {
-            // loop forward
-            self.current_idx = self.queue.len() - 1;
+        if let Some(indices) = &self.filtered_indices {
+            if indices.is_empty() {
+                return Ok(());
+            }
+
+            if let Some(pos) = indices
+                .iter()
+                .position(|&real_idx| real_idx == self.current_idx)
+            {
+                let prev_pos = if pos == 0 { indices.len() - 1 } else { pos - 1 };
+                self.current_idx = indices[prev_pos];
+            } else {
+                self.current_idx = indices[indices.len() - 1];
+            }
         } else {
-            self.current_idx -= 1;
+            if self.current_idx == 0 {
+                self.current_idx = self.queue.len() - 1;
+            } else {
+                self.current_idx -= 1;
+            }
         }
         Ok(())
     }
@@ -260,5 +290,15 @@ impl SongQueue {
             .collect();
 
         self.filtered_indices = Some(indices);
+    }
+
+    pub fn get_display_songs(&self) -> Vec<(usize, &Song)> {
+        match &self.filtered_indices {
+            Some(indices) => indices
+                .iter()
+                .filter_map(|&i| self.queue.get(i).map(|song| (i, song)))
+                .collect(),
+            None => self.queue.iter().enumerate().collect(),
+        }
     }
 }
