@@ -14,7 +14,7 @@ pub fn render_bar_popup(model: &Model, frame: &mut Frame, area: Rect) {
 
     match &bar_state.bar_type {
         BarType::Command => render_command_bar(model, frame, area),
-        // BarType::Search => render_search_bar(model, frame, area),
+        BarType::Search => render_search_bar(model, frame, area),
     };
 }
 
@@ -40,6 +40,27 @@ fn render_command_bar(model: &Model, frame: &mut Frame, area: Rect) {
     frame.render_widget(paragraph, popup_area);
 }
 
+fn render_search_bar(model: &Model, frame: &mut Frame, area: Rect) {
+    let Some(Popup::Bar(command_bar)) = &model.popup else {
+        unreachable!();
+    };
+
+    let input = &command_bar.input;
+
+    let block = Block::default()
+        .borders(Borders::BOTTOM)
+        .style(Style::default());
+
+    let paragraph = Paragraph::new(Line::from(vec![
+        Span::from("   > "),
+        Span::styled(input.clone(), Style::default().fg(Color::White)),
+    ]))
+    .block(block);
+
+    let popup_area = bar_area(area);
+    frame.render_widget(Clear, popup_area);
+    frame.render_widget(paragraph, popup_area);
+}
 fn bar_area(r: Rect) -> Rect {
     const BAR_HEIGHT: u16 = 2;
     const BAR_WIDTH: u16 = 70;

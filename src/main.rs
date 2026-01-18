@@ -143,7 +143,7 @@ enum Popup {
 #[derive(Debug, PartialEq)]
 enum BarType {
     Command,
-    // Search,
+    Search,
 }
 
 #[derive(Debug, PartialEq)]
@@ -178,6 +178,7 @@ enum Message {
     Unmute,
     EraseChar,
     OpenHint,
+    OpenSearchBar,
 }
 
 fn main() -> Result<()> {
@@ -264,6 +265,7 @@ fn handle_hotkey(keycode: event::KeyCode) -> Option<Message> {
         event::KeyCode::Char('=') | event::KeyCode::Char('+') => Some(Message::VolumeUp),
         event::KeyCode::Char('-') | event::KeyCode::Char('_') => Some(Message::VolumeDown),
         event::KeyCode::Char('?') => Some(Message::OpenHint),
+        event::KeyCode::Char('/') => Some(Message::OpenSearchBar),
         _ => None,
     }
 }
@@ -405,6 +407,13 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
             model.popup = Some(Popup::Hint);
             None
         }
+        Message::OpenSearchBar => {
+            model.popup = Some(Popup::Bar(BarState {
+                input: String::new(),
+                bar_type: BarType::Search,
+            }));
+            None
+        }
     };
     debug!(
         "Updated state [{:?}], popup [{:?}], Message [{:?}]",
@@ -421,6 +430,7 @@ fn handle_popup_submit(model: &mut Model) -> Option<Message> {
     let ret = match popup {
         Popup::Bar(bar) => match bar.bar_type {
             BarType::Command => handle_command(model),
+            _ => None,
             // BarType::Search => handle_search(model),
         },
         Popup::Hint => None,
