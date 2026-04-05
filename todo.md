@@ -23,6 +23,12 @@
     But for that we need to implement playlists.
     - Can hit "Schedule next" from search bar for a matched song without closing the search bar.
 
+* Layout-agnostic keypresses. Bind actions to keys, not characters. So hotkeys still work in any layout.
+    - "Alternate keys and Unicode codepoints are not yet supported by crossterm." - https://docs.rs/crossterm/latest/crossterm/event/struct.KeyboardEnhancementFlags.html
+    - Thus, we might want to contribute to crossterm.
+    - For now, I added mapping йцукен -> qwerty
+
+
 ...
 P2P network - ?
 
