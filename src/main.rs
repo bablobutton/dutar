@@ -235,25 +235,24 @@ fn handle_event(model: &Model) -> Result<Option<Message>> {
 }
 
 fn handle_key(key: event::KeyEvent, model: &Model) -> Option<Message> {
-    let key_code = utils::map_key_code(key.code);
     match &model.popup {
-        Some(Popup::Bar(_)) => match key_code {
+        Some(Popup::Bar(_)) => match key.code {
             event::KeyCode::Enter => Some(Message::PopupSubmit),
             event::KeyCode::Esc => Some(Message::ClosePopup),
             event::KeyCode::Char(c) => Some(Message::SendCharToPopup(c)),
             event::KeyCode::Backspace => Some(Message::EraseChar),
             _ => None,
         },
-        Some(Popup::Hint) => match key_code {
+        Some(Popup::Hint) => match key.code {
             event::KeyCode::Enter => Some(Message::ClosePopup),
             event::KeyCode::Esc => Some(Message::ClosePopup),
             event::KeyCode::Char('q') => Some(Message::ClosePopup),
-            event::KeyCode::Char(_) => handle_hotkey(key_code),
+            event::KeyCode::Char(_) => handle_hotkey(key.code),
             _ => None,
         },
-        None => match key_code {
+        None => match key.code {
             event::KeyCode::Esc => Some(Message::ClearSearch),
-            _ => handle_hotkey(key_code),
+            _ => handle_hotkey(key.code),
         },
     }
 }

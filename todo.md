@@ -7,13 +7,12 @@
     - autocomplete from dropdown selector on TAB press or enter
 * Some way of displaying and playing albums, playlists, artists.
 * Shuffle, repeat
-* Notification system (at least for errors that worth showing to user).
 * Album cover -> ASCII art
 * Exponential (or quadradtic) skipping intervals when holding skip button (J or L). Example: holding L should skip forward 1s, 2s, 4s, 8s, 16s...
 * Set duration on number keys like youtube: 0 -> start of song, 1 -> 10%, 2 -> 20%, ...
-* Layout-agnostic keypresses. Bind actions to keys, not characters. So hotkeys still work in Russian layout.
 * Double Ctrl+C to quit the app instead of 'q' with a warning after the first hit.
 * "Schedule next" hotkey.
+* Make OS recognize dutar as music player so that headset integration works, multi media keys, so on.
 
 * Search
     - Need fuzzy search among all fields at once - artist, title, album. Can probably reuse ripgrep.
@@ -23,11 +22,10 @@
     But for that we need to implement playlists.
     - Can hit "Schedule next" from search bar for a matched song without closing the search bar.
 
-* Layout-agnostic keypresses. Bind actions to keys, not characters. So hotkeys still work in any layout.
-    - "Alternate keys and Unicode codepoints are not yet supported by crossterm." - https://docs.rs/crossterm/latest/crossterm/event/struct.KeyboardEnhancementFlags.html
-    - Thus, we might want to contribute to crossterm.
-    - For now, I added mapping йцукен -> qwerty
-
+* Layout-agnostic keypresses. Bind actions to keys, not characters. So hotkeys still work in Russian layout.
+    - this needs to be supported at crossterm level but they haven't implemented kitty protocol for this yet
+    - https://docs.rs/crossterm/latest/crossterm/event/struct.KeyboardEnhancementFlags.html
+    - we can't just create mapping йцукен -> qwerty due to some edge cases
 
 ...
 P2P network - ?

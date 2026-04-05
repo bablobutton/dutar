@@ -4,7 +4,6 @@ use lofty::probe::Probe;
 use lofty::read_from_path;
 use lofty::tag::Accessor;
 use log::error;
-use ratatui::crossterm::event::KeyCode;
 use std::fs;
 use std::path::Path;
 
@@ -80,84 +79,4 @@ pub fn count_digits(num: u64) -> usize {
         return 1;
     }
     (num.ilog10() + 1) as usize
-}
-
-pub fn map_key_code(key_code: KeyCode) -> KeyCode {
-    match key_code {
-        KeyCode::Char(c) => KeyCode::Char(map_russian_to_qwerty(c)),
-        other => other,
-    }
-}
-
-fn map_russian_to_qwerty(c: char) -> char {
-    match c {
-        'й' => 'q',
-        'ц' => 'w',
-        'у' => 'e',
-        'к' => 'r',
-        'е' => 't',
-        'н' => 'y',
-        'г' => 'u',
-        'ш' => 'i',
-        'щ' => 'o',
-        'з' => 'p',
-        'х' => '[',
-        'ъ' => ']',
-        'ф' => 'a',
-        'ы' => 's',
-        'в' => 'd',
-        'а' => 'f',
-        'п' => 'g',
-        'р' => 'h',
-        'о' => 'j',
-        'л' => 'k',
-        'д' => 'l',
-        'ж' => ';',
-        'э' => '\'',
-        'я' => 'z',
-        'ч' => 'x',
-        'с' => 'c',
-        'м' => 'v',
-        'и' => 'b',
-        'т' => 'n',
-        'ь' => 'm',
-        'б' => ',',
-        'ю' => '.',
-        'ё' => '`',
-        // uppercase
-        'Й' => 'Q',
-        'Ц' => 'W',
-        'У' => 'E',
-        'К' => 'R',
-        'Е' => 'T',
-        'Н' => 'Y',
-        'Г' => 'U',
-        'Ш' => 'I',
-        'Щ' => 'O',
-        'З' => 'P',
-        'Х' => '{',
-        'Ъ' => '}',
-        'Ф' => 'A',
-        'Ы' => 'S',
-        'В' => 'D',
-        'А' => 'F',
-        'П' => 'G',
-        'Р' => 'H',
-        'О' => 'J',
-        'Л' => 'K',
-        'Д' => 'L',
-        'Ж' => ':',
-        'Э' => '"',
-        'Я' => 'Z',
-        'Ч' => 'X',
-        'С' => 'C',
-        'М' => 'V',
-        'И' => 'B',
-        'Т' => 'N',
-        'Ь' => 'M',
-        'Б' => '<',
-        'Ю' => '>',
-        'Ё' => '~',
-        other => other,
-    }
 }
