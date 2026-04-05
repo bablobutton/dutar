@@ -5,8 +5,6 @@
     - dropdown with suggestions filtered by fuzzy search
     - select from dropdown on C-n and C-p
     - autocomplete from dropdown selector on TAB press or enter
-* Search bar.
-    - Same UI as for command bar with fzf and shit
 * Some way of displaying and playing albums, playlists, artists.
 * Shuffle, repeat
 * Notification system (at least for errors that worth showing to user).
@@ -15,6 +13,15 @@
 * Set duration on number keys like youtube: 0 -> start of song, 1 -> 10%, 2 -> 20%, ...
 * Layout-agnostic keypresses. Bind actions to keys, not characters. So hotkeys still work in Russian layout.
 * Double Ctrl+C to quit the app instead of 'q' with a warning after the first hit.
+* "Schedule next" hotkey.
+
+* Search
+    - Need fuzzy search among all fields at once - artist, title, album. Can probably reuse ripgrep.
+    - Search bar should have a dropdown with fuzzily matched songs. Then select with C-n/C-p.
+    - I think search should only work on currently opened playlist.
+    This way we can remove "ClearSearch" command and not change the list of songs in the UI.
+    But for that we need to implement playlists.
+    - Can hit "Schedule next" from search bar for a matched song without closing the search bar.
 
 ...
 P2P network - ?
