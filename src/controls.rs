@@ -146,6 +146,19 @@ pub fn get_current_song_total_duration(model: &Model) -> Option<Duration> {
     None
 }
 
+pub fn goto_percent_current_song(model: &Model, position: u8) {
+    if let Some(total_duration) = get_current_song_total_duration(model) {
+        let percentage_position = (position as f64 / 10.0).clamp(0.0, 0.9);
+        let desired_position =
+            Duration::from_secs_f64(total_duration.as_secs_f64() * percentage_position);
+
+        let sink = &model.audio.sink;
+        if let Err(e) = sink.try_seek(desired_position) {
+            error!("{e}");
+        }
+    }
+}
+
 pub fn volume_up(model: &mut Model, val: f32) {
     let sink = &model.audio.sink;
     let curr_vol = sink.volume();

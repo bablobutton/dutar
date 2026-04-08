@@ -22,6 +22,7 @@ pub fn render_hints_popup(model: &Model, frame: &mut Frame, area: Rect) {
         ["=/+", "Volume up"],
         ["-/_", "Volume down"],
         ["?", "Show hints"],
+        ["0..=9", "Jump within track"],
     ];
 
     let command_pairs = [
@@ -35,6 +36,7 @@ pub fn render_hints_popup(model: &Model, frame: &mut Frame, area: Rect) {
         ["mute", "Mute"],
         ["unmute", "Unmute"],
         ["togglemute", "Toggle mute"],
+        ["jump <0-9>", "Jump within track"],
     ];
 
     // Calculate popup area

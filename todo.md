@@ -27,6 +27,12 @@
     - https://docs.rs/crossterm/latest/crossterm/event/struct.KeyboardEnhancementFlags.html
     - we can't just create mapping йцукен -> qwerty due to some edge cases
 
+* Loop songs (once, ... , thrice, ... , sixfold, for all of eternity). Emoji's? 1🔁, ... , ♾️🔁
+* Edit fs from TUI. Delete songs with 'dd'. Ask for confirmation, just as Ctrl+C above
+* Hide songs from this session without actualy deleting them
+* Ability to like songs. Row highlight of a romantic color
+* The Artist, Title, Album names of the song currently in focus move so you can see all of the data
+
 ...
 P2P network - ?
 
