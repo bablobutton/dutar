@@ -5,6 +5,7 @@ mod queue;
 mod tui;
 mod utils;
 
+use color_eyre::owo_colors::colors::xterm::PinkLace;
 use color_eyre::{Result, eyre::WrapErr};
 use db::DB;
 use log::{debug, error, warn};
@@ -181,6 +182,7 @@ enum Message {
     OpenSearchBar,
     ClearSearch,
     PlayFromSearch(usize),
+    JumpTo(u8),
 }
 
 fn main() -> Result<()> {
@@ -271,6 +273,10 @@ fn handle_hotkey(keycode: event::KeyCode) -> Option<Message> {
         event::KeyCode::Char('-') | event::KeyCode::Char('_') => Some(Message::VolumeDown),
         event::KeyCode::Char('?') => Some(Message::OpenHint),
         event::KeyCode::Char('/') => Some(Message::OpenSearchBar),
+        event::KeyCode::Char(ch @ '0'..='9') => {
+            let digit = ch.to_digit(10).unwrap();
+            Some(Message::JumpTo(digit as u8))
+        }
         _ => None,
     }
 }
@@ -448,6 +454,10 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
                 Err(e) => log::error!("Failed to play: {}", e),
             }
 
+            None
+        }
+        Message::JumpTo(place) => {
+            controls::goto_percent_current_song(model, place);
             None
         }
     };
