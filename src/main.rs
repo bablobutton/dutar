@@ -526,6 +526,7 @@ fn handle_command(model: &mut Model) -> Option<Message> {
         "mute" => Some(Message::Mute),
         "unmute" => Some(Message::Unmute),
         "togglemute" => Some(Message::ToggleMute),
+        "jump" => handle_jump_within_track(&argv),
         _ => None,
     }
 }
@@ -539,6 +540,18 @@ fn handle_set_volume(argv: &[&str]) -> Option<Message> {
         return None;
     }
     warn!("No argument supplied to set volume");
+    None
+}
+
+fn handle_jump_within_track(argv: &[&str]) -> Option<Message> {
+    if argv.len() >= 2 {
+        let percentage: std::result::Result<u8, std::num::ParseIntError> = argv[1].parse();
+        if let Ok(p) = percentage {
+            return Some(Message::JumpTo(p));
+        }
+        return None;
+    }
+    warn!("No argument supplies to jump within track");
     None
 }
 
