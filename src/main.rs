@@ -5,12 +5,11 @@ mod queue;
 mod tui;
 mod utils;
 
-use color_eyre::owo_colors::colors::xterm::PinkLace;
 use color_eyre::{Result, eyre::WrapErr};
 use db::DB;
 use log::{debug, error, warn};
 use queue::SongQueue;
-use ratatui::crossterm::event;
+use ratatui::crossterm::event::{self, KeyModifiers};
 use ratatui::widgets::TableState;
 use rodio::{OutputStream, Sink};
 use std::env;
@@ -139,6 +138,7 @@ struct BarState {
 enum Popup {
     Bar(BarState),
     Hint,
+    SafeExit,
 }
 
 #[derive(Debug, PartialEq)]
@@ -168,6 +168,7 @@ enum Message {
     Previous,
     Quit,
     OpenCommandBar,
+    OpenSafeExit,
     ClosePopup,
     PopupSubmit,
     SendCharToPopup(char),
@@ -252,8 +253,18 @@ fn handle_key(key: event::KeyEvent, model: &Model) -> Option<Message> {
             event::KeyCode::Char(_) => handle_hotkey(key.code),
             _ => None,
         },
-        None => match key.code {
-            event::KeyCode::Esc => Some(Message::ClearSearch),
+        Some(Popup::SafeExit) => match (key.code, key.modifiers) {
+            (event::KeyCode::Char('c'), m) if m.contains(KeyModifiers::CONTROL) => {
+                Some(Message::Quit)
+            }
+            (event::KeyCode::Esc, _) => Some(Message::ClosePopup),
+            _ => None,
+        },
+        None => match (key.code, key.modifiers) {
+            (event::KeyCode::Esc, _) => Some(Message::ClearSearch),
+            (event::KeyCode::Char('c'), m) if m.contains(KeyModifiers::CONTROL) => {
+                Some(Message::OpenSafeExit)
+            }
             _ => handle_hotkey(key.code),
         },
     }
@@ -262,7 +273,7 @@ fn handle_key(key: event::KeyEvent, model: &Model) -> Option<Message> {
 fn handle_hotkey(keycode: event::KeyCode) -> Option<Message> {
     match keycode {
         event::KeyCode::Char('k') => Some(Message::TogglePlay),
-        event::KeyCode::Char('q') => Some(Message::Quit),
+        //event::KeyCode::Char('q') => Some(Message::Quit),
         event::KeyCode::Char('l') => Some(Message::SkipForward),
         event::KeyCode::Char('j') => Some(Message::SkipBack),
         event::KeyCode::Char('n') => Some(Message::Next),
@@ -434,6 +445,10 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
             }));
             None
         }
+        Message::OpenSafeExit => {
+            model.popup = Some(Popup::SafeExit);
+            None
+        }
         Message::ClearSearch => {
             model.queue.set_filter("");
             let curr_idx = model.queue.get_current_idx();
@@ -493,6 +508,7 @@ fn handle_popup_submit(model: &mut Model) -> Option<Message> {
             }
         },
         Popup::Hint => None,
+        Popup::SafeExit => None,
     };
 
     if model.popup.is_some() {

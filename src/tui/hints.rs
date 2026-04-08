@@ -12,7 +12,7 @@ pub fn render_hints_popup(model: &Model, frame: &mut Frame, area: Rect) {
 
     let hotkey_pairs = [
         ["k", "Toggle play/pause"],
-        ["q", "Quit"],
+        ["Ctrl+C", "Quit with confirmation"],
         ["l", "Skip forward"],
         ["j", "Skip back"],
         ["n", "Next track"],
