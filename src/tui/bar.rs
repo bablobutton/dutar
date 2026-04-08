@@ -62,7 +62,7 @@ fn render_search_bar(model: &Model, frame: &mut Frame, area: Rect) {
     frame.render_widget(paragraph, popup_area);
 }
 
-pub fn bar_area(r: Rect) -> Rect {
+fn bar_area(r: Rect) -> Rect {
     const BAR_HEIGHT: u16 = 2;
     const BAR_WIDTH: u16 = 70;
 
