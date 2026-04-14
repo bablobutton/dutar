@@ -14,7 +14,7 @@ use ratatui::widgets::TableState;
 use rodio::{OutputStream, Sink};
 use std::env;
 use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender, channel};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 // represents a state of the app
 struct Model {
@@ -138,7 +138,7 @@ struct BarState {
 enum Popup {
     Bar(BarState),
     Hint,
-    SafeExit,
+    SafeExit { expires_at: Instant },
 }
 
 #[derive(Debug, PartialEq)]
@@ -184,6 +184,7 @@ enum Message {
     ClearSearch,
     PlayFromSearch(usize),
     JumpTo(u8),
+    Tick,
 }
 
 fn main() -> Result<()> {
@@ -234,7 +235,8 @@ fn handle_event(model: &Model) -> Result<Option<Message>> {
             }
         }
     }
-    Ok(None)
+
+    Ok(Some(Message::Tick))
 }
 
 fn handle_key(key: event::KeyEvent, model: &Model) -> Option<Message> {
@@ -253,11 +255,10 @@ fn handle_key(key: event::KeyEvent, model: &Model) -> Option<Message> {
             event::KeyCode::Char(_) => handle_hotkey(key.code),
             _ => None,
         },
-        Some(Popup::SafeExit) => match (key.code, key.modifiers) {
+        Some(Popup::SafeExit { .. }) => match (key.code, key.modifiers) {
             (event::KeyCode::Char('c'), m) if m.contains(KeyModifiers::CONTROL) => {
                 Some(Message::Quit)
             }
-            (event::KeyCode::Esc, _) => Some(Message::ClosePopup),
             _ => None,
         },
         None => match (key.code, key.modifiers) {
@@ -446,7 +447,9 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
             None
         }
         Message::OpenSafeExit => {
-            model.popup = Some(Popup::SafeExit);
+            model.popup = Some(Popup::SafeExit {
+                expires_at: Instant::now() + Duration::from_millis(1250),
+            });
             None
         }
         Message::ClearSearch => {
@@ -473,6 +476,14 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
         }
         Message::JumpTo(place) => {
             controls::goto_percent_current_song(model, place);
+            None
+        }
+        Message::Tick => {
+            if let Some(Popup::SafeExit { expires_at }) = &model.popup {
+                if Instant::now() > *expires_at {
+                    model.popup = None;
+                }
+            }
             None
         }
     };
@@ -508,7 +519,7 @@ fn handle_popup_submit(model: &mut Model) -> Option<Message> {
             }
         },
         Popup::Hint => None,
-        Popup::SafeExit => None,
+        Popup::SafeExit { .. } => None,
     };
 
     if model.popup.is_some() {

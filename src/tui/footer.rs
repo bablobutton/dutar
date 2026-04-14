@@ -21,6 +21,10 @@ pub fn render_footer(model: &Model, frame: &mut Frame, area: Rect) {
     render_bars(model, frame, bars_area);
 }
 
+fn render_safe_exit(model: &Model, frame: &mut Frame, area: Rect) {
+    todo!();
+}
+
 fn render_playing_status(model: &Model, frame: &mut Frame, area: Rect) {
     let (title, artist, album) = model
         .queue
