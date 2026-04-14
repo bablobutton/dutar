@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::{Model, controls, utils};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
@@ -17,12 +17,21 @@ pub fn render_footer(model: &Model, frame: &mut Frame, area: Rect) {
         .horizontal_margin(1)
         .areas(area);
 
-    render_playing_status(model, frame, status_area);
+    if model
+        .safe_exit_expires_at
+        .is_some_and(|expiration_time| Instant::now() <= expiration_time)
+    {
+        render_safe_exit(model, frame, status_area);
+    } else {
+        render_playing_status(model, frame, status_area);
+    }
+
     render_bars(model, frame, bars_area);
 }
 
-fn render_safe_exit(model: &Model, frame: &mut Frame, area: Rect) {
-    todo!();
+fn render_safe_exit(_: &Model, frame: &mut Frame, area: Rect) {
+    let textual = Paragraph::new("Press Ctrl-C again to exit");
+    frame.render_widget(textual, area);
 }
 
 fn render_playing_status(model: &Model, frame: &mut Frame, area: Rect) {

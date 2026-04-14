@@ -2,7 +2,6 @@ mod bar;
 mod footer;
 mod hints;
 mod queue;
-mod safe_exit;
 
 use crate::Model;
 use bar::render_bar_popup;
@@ -11,7 +10,6 @@ use hints::render_hints_popup;
 use queue::render_queue;
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout};
-use safe_exit::render_safe_exit_popup;
 
 const MAX_APP_WIDTH: u16 = 100;
 const MAX_APP_HEIGHT: u16 = 30;
@@ -42,5 +40,4 @@ pub fn render(model: &mut Model, frame: &mut Frame) {
     // render popups
     render_bar_popup(model, frame, app_area);
     render_hints_popup(model, frame, app_area);
-    render_safe_exit_popup(model, frame, app_area);
 }

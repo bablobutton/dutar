@@ -26,6 +26,7 @@ struct Model {
     queue: SongQueue,
     channel: Channel,
     db: DB,
+    safe_exit_expires_at: Option<Instant>,
 }
 
 impl Model {
@@ -66,6 +67,7 @@ impl Model {
             queue: queue,
             channel: Channel { rx, tx },
             db,
+            safe_exit_expires_at: None,
         };
 
         Self::restore_saved_state(&mut model);
@@ -138,7 +140,6 @@ struct BarState {
 enum Popup {
     Bar(BarState),
     Hint,
-    SafeExit { expires_at: Instant },
 }
 
 #[derive(Debug, PartialEq)]
@@ -240,6 +241,16 @@ fn handle_event(model: &Model) -> Result<Option<Message>> {
 }
 
 fn handle_key(key: event::KeyEvent, model: &Model) -> Option<Message> {
+    if let Some(expires_at) = model.safe_exit_expires_at {
+        if Instant::now() <= expires_at {
+            return match (key.code, key.modifiers) {
+                (event::KeyCode::Char('c'), m) if m.contains(KeyModifiers::CONTROL) => {
+                    Some(Message::Quit)
+                }
+                _ => None,
+            };
+        }
+    }
     match &model.popup {
         Some(Popup::Bar(_)) => match key.code {
             event::KeyCode::Enter => Some(Message::PopupSubmit),
@@ -253,12 +264,6 @@ fn handle_key(key: event::KeyEvent, model: &Model) -> Option<Message> {
             event::KeyCode::Esc => Some(Message::ClosePopup),
             event::KeyCode::Char('q') => Some(Message::ClosePopup),
             event::KeyCode::Char(_) => handle_hotkey(key.code),
-            _ => None,
-        },
-        Some(Popup::SafeExit { .. }) => match (key.code, key.modifiers) {
-            (event::KeyCode::Char('c'), m) if m.contains(KeyModifiers::CONTROL) => {
-                Some(Message::Quit)
-            }
             _ => None,
         },
         None => match (key.code, key.modifiers) {
@@ -447,9 +452,7 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
             None
         }
         Message::OpenSafeExit => {
-            model.popup = Some(Popup::SafeExit {
-                expires_at: Instant::now() + Duration::from_millis(1250),
-            });
+            model.safe_exit_expires_at = Some(Instant::now() + Duration::from_millis(1250));
             None
         }
         Message::ClearSearch => {
@@ -479,9 +482,9 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
             None
         }
         Message::Tick => {
-            if let Some(Popup::SafeExit { expires_at }) = &model.popup {
+            if let Some(expires_at) = &model.safe_exit_expires_at {
                 if Instant::now() > *expires_at {
-                    model.popup = None;
+                    model.safe_exit_expires_at = None;
                 }
             }
             None
@@ -519,7 +522,6 @@ fn handle_popup_submit(model: &mut Model) -> Option<Message> {
             }
         },
         Popup::Hint => None,
-        Popup::SafeExit { .. } => None,
     };
 
     if model.popup.is_some() {
