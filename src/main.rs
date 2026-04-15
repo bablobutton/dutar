@@ -241,16 +241,6 @@ fn handle_event(model: &Model) -> Result<Option<Message>> {
 }
 
 fn handle_key(key: event::KeyEvent, model: &Model) -> Option<Message> {
-    if let Some(expires_at) = model.safe_exit_expires_at {
-        if Instant::now() <= expires_at {
-            return match (key.code, key.modifiers) {
-                (event::KeyCode::Char('c'), m) if m.contains(KeyModifiers::CONTROL) => {
-                    Some(Message::Quit)
-                }
-                _ => None,
-            };
-        }
-    }
     match &model.popup {
         Some(Popup::Bar(_)) => match key.code {
             event::KeyCode::Enter => Some(Message::PopupSubmit),
@@ -266,20 +256,38 @@ fn handle_key(key: event::KeyEvent, model: &Model) -> Option<Message> {
             event::KeyCode::Char(_) => handle_hotkey(key.code),
             _ => None,
         },
-        None => match (key.code, key.modifiers) {
-            (event::KeyCode::Esc, _) => Some(Message::ClearSearch),
-            (event::KeyCode::Char('c'), m) if m.contains(KeyModifiers::CONTROL) => {
-                Some(Message::OpenSafeExit)
+        None => {
+            if let Some(expires_at) = model.safe_exit_expires_at
+                && Instant::now() <= expires_at
+            {
+                match (key.code, key.modifiers) {
+                    (event::KeyCode::Char('c'), m) if m.contains(KeyModifiers::CONTROL) => {
+                        Some(Message::Quit)
+                    }
+                    _ => match (key.code, key.modifiers) {
+                        (event::KeyCode::Esc, _) => Some(Message::ClearSearch),
+                        (event::KeyCode::Char('c'), m) if m.contains(KeyModifiers::CONTROL) => {
+                            Some(Message::OpenSafeExit)
+                        }
+                        _ => handle_hotkey(key.code),
+                    },
+                }
+            } else {
+                match (key.code, key.modifiers) {
+                    (event::KeyCode::Esc, _) => Some(Message::ClearSearch),
+                    (event::KeyCode::Char('c'), m) if m.contains(KeyModifiers::CONTROL) => {
+                        Some(Message::OpenSafeExit)
+                    }
+                    _ => handle_hotkey(key.code),
+                }
             }
-            _ => handle_hotkey(key.code),
-        },
+        }
     }
 }
 
 fn handle_hotkey(keycode: event::KeyCode) -> Option<Message> {
     match keycode {
         event::KeyCode::Char('k') => Some(Message::TogglePlay),
-        //event::KeyCode::Char('q') => Some(Message::Quit),
         event::KeyCode::Char('l') => Some(Message::SkipForward),
         event::KeyCode::Char('j') => Some(Message::SkipBack),
         event::KeyCode::Char('n') => Some(Message::Next),

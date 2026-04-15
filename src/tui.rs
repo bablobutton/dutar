@@ -30,7 +30,7 @@ pub fn render(model: &mut Model, frame: &mut Frame) {
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Fill(1),   // song queue
-            Constraint::Length(2), // footer
+            Constraint::Length(3), // footer
         ])
         .areas(app_area);
 
