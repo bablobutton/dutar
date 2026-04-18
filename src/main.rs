@@ -5,17 +5,16 @@ mod queue;
 mod tui;
 mod utils;
 
-use color_eyre::owo_colors::colors::xterm::PinkLace;
 use color_eyre::{Result, eyre::WrapErr};
 use db::DB;
 use log::{debug, error, warn};
 use queue::SongQueue;
-use ratatui::crossterm::event;
+use ratatui::crossterm::event::{self, KeyModifiers};
 use ratatui::widgets::TableState;
 use rodio::{OutputStream, Sink};
 use std::env;
 use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender, channel};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 // represents a state of the app
 struct Model {
@@ -27,6 +26,7 @@ struct Model {
     queue: SongQueue,
     channel: Channel,
     db: DB,
+    safe_exit_expires_at: Option<Instant>,
 }
 
 impl Model {
@@ -67,6 +67,7 @@ impl Model {
             queue: queue,
             channel: Channel { rx, tx },
             db,
+            safe_exit_expires_at: None,
         };
 
         Self::restore_saved_state(&mut model);
@@ -168,6 +169,7 @@ enum Message {
     Previous,
     Quit,
     OpenCommandBar,
+    OpenSafeExit,
     ClosePopup,
     PopupSubmit,
     SendCharToPopup(char),
@@ -183,6 +185,7 @@ enum Message {
     ClearSearch,
     PlayFromSearch(usize),
     JumpTo(u8),
+    Tick,
 }
 
 fn main() -> Result<()> {
@@ -233,7 +236,8 @@ fn handle_event(model: &Model) -> Result<Option<Message>> {
             }
         }
     }
-    Ok(None)
+
+    Ok(Some(Message::Tick))
 }
 
 fn handle_key(key: event::KeyEvent, model: &Model) -> Option<Message> {
@@ -252,17 +256,38 @@ fn handle_key(key: event::KeyEvent, model: &Model) -> Option<Message> {
             event::KeyCode::Char(_) => handle_hotkey(key.code),
             _ => None,
         },
-        None => match key.code {
-            event::KeyCode::Esc => Some(Message::ClearSearch),
-            _ => handle_hotkey(key.code),
-        },
+        None => {
+            if let Some(expires_at) = model.safe_exit_expires_at
+                && Instant::now() <= expires_at
+            {
+                match (key.code, key.modifiers) {
+                    (event::KeyCode::Char('c'), m) if m.contains(KeyModifiers::CONTROL) => {
+                        Some(Message::Quit)
+                    }
+                    _ => match (key.code, key.modifiers) {
+                        (event::KeyCode::Esc, _) => Some(Message::ClearSearch),
+                        (event::KeyCode::Char('c'), m) if m.contains(KeyModifiers::CONTROL) => {
+                            Some(Message::OpenSafeExit)
+                        }
+                        _ => handle_hotkey(key.code),
+                    },
+                }
+            } else {
+                match (key.code, key.modifiers) {
+                    (event::KeyCode::Esc, _) => Some(Message::ClearSearch),
+                    (event::KeyCode::Char('c'), m) if m.contains(KeyModifiers::CONTROL) => {
+                        Some(Message::OpenSafeExit)
+                    }
+                    _ => handle_hotkey(key.code),
+                }
+            }
+        }
     }
 }
 
 fn handle_hotkey(keycode: event::KeyCode) -> Option<Message> {
     match keycode {
         event::KeyCode::Char('k') => Some(Message::TogglePlay),
-        event::KeyCode::Char('q') => Some(Message::Quit),
         event::KeyCode::Char('l') => Some(Message::SkipForward),
         event::KeyCode::Char('j') => Some(Message::SkipBack),
         event::KeyCode::Char('n') => Some(Message::Next),
@@ -434,6 +459,10 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
             }));
             None
         }
+        Message::OpenSafeExit => {
+            model.safe_exit_expires_at = Some(Instant::now() + Duration::from_millis(1250));
+            None
+        }
         Message::ClearSearch => {
             model.queue.set_filter("");
             let curr_idx = model.queue.get_current_idx();
@@ -458,6 +487,14 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
         }
         Message::JumpTo(place) => {
             controls::goto_percent_current_song(model, place);
+            None
+        }
+        Message::Tick => {
+            if let Some(expires_at) = &model.safe_exit_expires_at {
+                if Instant::now() > *expires_at {
+                    model.safe_exit_expires_at = None;
+                }
+            }
             None
         }
     };

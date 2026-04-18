@@ -10,7 +10,6 @@
 * Album cover -> ASCII art
 * Exponential (or quadradtic) skipping intervals when holding skip button (J or L). Example: holding L should skip forward 1s, 2s, 4s, 8s, 16s...
 * Set duration on number keys like youtube: 0 -> start of song, 1 -> 10%, 2 -> 20%, ...
-* Double Ctrl+C to quit the app instead of 'q' with a warning after the first hit.
 * "Schedule next" hotkey.
 * Make OS recognize dutar as music player so that headset integration works, multi media keys, so on.
 
@@ -27,10 +26,8 @@
     - https://docs.rs/crossterm/latest/crossterm/event/struct.KeyboardEnhancementFlags.html
     - we can't just create mapping йцукен -> qwerty due to some edge cases
 
-* Loop songs (once, ... , thrice, ... , sixfold, for all of eternity). Emoji's? 1🔁, ... , ♾️🔁
-* Edit fs from TUI. Delete songs with 'dd'. Ask for confirmation, just as Ctrl+C above
+* Ability to repeat songs
 * Hide songs from this session without actualy deleting them
-* Ability to like songs. Row highlight of a romantic color
 * The Artist, Title, Album names of the song currently in focus move so you can see all of the data
 
 ...

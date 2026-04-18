@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::{Model, controls, utils};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
@@ -8,17 +8,34 @@ use ratatui::widgets::{LineGauge, Paragraph, Widget};
 use ratatui::{Frame, symbols};
 
 pub fn render_footer(model: &Model, frame: &mut Frame, area: Rect) {
-    let [status_area, bars_area] = Layout::default()
+    let [safe_exit_area, status_area, bars_area] = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(1), // Line 1: song info
-            Constraint::Length(1), // Line 2: volume and progress
+            Constraint::Length(1), // Line 1: Gap, would be replaced with Safe Exit
+            Constraint::Length(1), // Line 2: song info
+            Constraint::Length(1), // Line 3: volume and progress
         ])
         .horizontal_margin(1)
         .areas(area);
 
+    if model
+        .safe_exit_expires_at
+        .is_some_and(|expiration_time| Instant::now() <= expiration_time)
+    {
+        render_safe_exit(model, frame, safe_exit_area);
+    }
+
     render_playing_status(model, frame, status_area);
     render_bars(model, frame, bars_area);
+}
+
+fn render_safe_exit(_: &Model, frame: &mut Frame, area: Rect) {
+    let styled_text = Span::styled(
+        "Press Ctrl-C again to exit",
+        Style::default().fg(Color::DarkGray),
+    );
+    let textual = Paragraph::new(styled_text);
+    frame.render_widget(textual, area);
 }
 
 fn render_playing_status(model: &Model, frame: &mut Frame, area: Rect) {
