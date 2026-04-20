@@ -27,6 +27,7 @@ struct Model {
     channel: Channel,
     db: DB,
     safe_exit_expires_at: Option<Instant>,
+    last_skip: Option<Skip>,
 }
 
 impl Model {
@@ -68,6 +69,7 @@ impl Model {
             channel: Channel { rx, tx },
             db,
             safe_exit_expires_at: None,
+            last_skip: None,
         };
 
         Self::restore_saved_state(&mut model);
@@ -151,6 +153,20 @@ enum BarType {
 #[derive(Debug, PartialEq)]
 enum UIState {
     Main,
+}
+
+#[derive(Debug)]
+struct Skip {
+    direction: SkipDirection,
+    last_fired: Instant,
+    last_streak_updated: Instant,
+    streak: u32,
+}
+
+#[derive(Debug, PartialEq)]
+enum SkipDirection {
+    Backwards,
+    Forwards,
 }
 
 struct UI {
@@ -309,10 +325,12 @@ fn handle_hotkey(keycode: event::KeyCode) -> Option<Message> {
 // this is where state gets updated
 // when adding new state transitions, consider adding tests to solidify them
 fn update(model: &mut Model, msg: Message) -> Option<Message> {
-    debug!(
-        "Current playback state [{:?}], popup [{:?}] <- Message [{:?}]",
-        model.app_state, model.popup, msg
-    );
+    if msg != Message::Tick {
+        debug!(
+            "Current playback state [{:?}], popup [{:?}] <- Message [{:?}]",
+            model.app_state, model.popup, msg
+        );
+    }
     let ret = match msg {
         Message::TogglePlay => {
             if model.app_state == AppState::Player(PlayerState::Playing) {
@@ -338,11 +356,11 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
             None
         }
         Message::SkipForward => {
-            controls::forward_seconds(model, 5);
+            handle_skip(model, SkipDirection::Forwards);
             None
         }
         Message::SkipBack => {
-            controls::backward_seconds(model, 5);
+            handle_skip(model, SkipDirection::Backwards);
             None
         }
         Message::Next => {
@@ -498,10 +516,12 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
             None
         }
     };
-    debug!(
-        "Updated state [{:?}], popup [{:?}], Message [{:?}]",
-        model.app_state, model.popup, ret
-    );
+    if msg != Message::Tick {
+        debug!(
+            "Updated state [{:?}], popup [{:?}], Message [{:?}]",
+            model.app_state, model.popup, ret
+        );
+    }
     ret
 }
 
@@ -594,6 +614,42 @@ fn handle_jump_within_track(argv: &[&str]) -> Option<Message> {
 
 fn handle_search(model: &mut Model) -> Option<Message> {
     todo!();
+}
+
+fn handle_skip(model: &mut Model, direction: SkipDirection) {
+    const PRESS_GRACE: Duration = Duration::from_millis(250);
+    const STREAK_LEVELUP_COOLDOWN: Duration = Duration::from_millis(3000);
+    const MAX_STREAK: u32 = 4;
+
+    let current_instant = Instant::now();
+    if let Some(skip) = &mut model.last_skip {
+        if skip.direction == direction
+            && current_instant.duration_since(skip.last_fired) < PRESS_GRACE
+        {
+            if current_instant.duration_since(skip.last_streak_updated) >= STREAK_LEVELUP_COOLDOWN {
+                skip.streak = (skip.streak + 1).min(MAX_STREAK);
+                skip.last_streak_updated = current_instant;
+            }
+        }
+
+        if skip.direction != direction
+            || current_instant.duration_since(skip.last_fired) >= PRESS_GRACE
+        {
+            skip.direction = direction;
+            skip.last_streak_updated = current_instant;
+            skip.streak = 1;
+        }
+        skip.last_fired = current_instant;
+    } else {
+        model.last_skip = Some(Skip {
+            direction,
+            last_fired: current_instant,
+            last_streak_updated: current_instant,
+            streak: 1,
+        })
+    }
+
+    controls::quadratic_skip(model);
 }
 
 #[cfg(test)]

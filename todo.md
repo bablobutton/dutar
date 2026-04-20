@@ -9,7 +9,6 @@
 * Shuffle, repeat
 * Album cover -> ASCII art
 * Exponential (or quadradtic) skipping intervals when holding skip button (J or L). Example: holding L should skip forward 1s, 2s, 4s, 8s, 16s...
-* Set duration on number keys like youtube: 0 -> start of song, 1 -> 10%, 2 -> 20%, ...
 * "Schedule next" hotkey.
 * Make OS recognize dutar as music player so that headset integration works, multi media keys, so on.
 

@@ -1,4 +1,4 @@
-use crate::{Message, Model};
+use crate::{Message, Model, SkipDirection};
 use color_eyre::{
     Result,
     eyre::{OptionExt, eyre},
@@ -103,7 +103,29 @@ pub fn play_previous(model: &mut Model) -> Result<()> {
     Ok(())
 }
 
-pub fn forward_seconds(model: &mut Model, seconds: u64) {
+pub fn quadratic_skip(model: &mut Model) {
+    let sink = &model.audio.sink;
+    let mut curr_duration = sink.get_pos();
+
+    if let Some(skip) = &model.last_skip {
+        match skip.direction {
+            SkipDirection::Backwards => {
+                curr_duration =
+                    curr_duration.saturating_sub(Duration::from_secs(skip.streak.pow(2) as u64));
+            }
+            SkipDirection::Forwards => {
+                curr_duration =
+                    curr_duration.saturating_add(Duration::from_secs(skip.streak.pow(2) as u64));
+            }
+        }
+    }
+
+    if let Err(e) = sink.try_seek(curr_duration) {
+        error!("{e}");
+    }
+}
+
+/* pub fn forward_seconds(model: &mut Model, seconds: u64) {
     let sink = &model.audio.sink;
     let curr_duration = sink.get_pos();
     let skip_seconds = Duration::from_secs(seconds);
@@ -123,7 +145,7 @@ pub fn backward_seconds(model: &mut Model, seconds: u64) {
         error!("{e}");
     }
     debug!("Backward {seconds} seconds, current_duration={curr_duration:?}");
-}
+} */
 
 pub fn get_current_duration(model: &Model) -> Duration {
     model.audio.sink.get_pos()
