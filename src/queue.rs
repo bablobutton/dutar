@@ -7,18 +7,18 @@ use std::fs::{self, metadata};
 use std::path::PathBuf;
 
 pub struct SongQueue {
-    queue: Vec<Song>,
+    pub queue: Vec<Song>,
     current_idx: usize,
     filtered_indices: Option<Vec<usize>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Song {
     pub path: PathBuf,
     pub metadata: Option<Metadata>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Metadata {
     pub title: String,
     pub artist: String,
@@ -121,6 +121,13 @@ impl SongQueue {
         }
     }
 
+    pub fn add_new_songs(&mut self, new_songs: Vec<Song>) {
+        let new_song_count = new_songs.len();
+        self.queue.extend(new_songs);
+
+        debug!("Added {} songs to the queue", new_song_count);
+    }
+
     // When no queue is saved persistently to DB, dutar will scan default Music dir
     // and use that as a queue.
     // It's okay for this function to return empty queue.
@@ -176,7 +183,7 @@ impl SongQueue {
             .collect();
 
         Self {
-            queue: queue,
+            queue,
             current_idx: 0,
             filtered_indices: None,
         }
@@ -196,7 +203,7 @@ impl SongQueue {
         })
     }
 
-    fn load_songs_from_path(path: PathBuf) -> Result<Vec<Song>> {
+    pub fn load_songs_from_path(path: PathBuf) -> Result<Vec<Song>> {
         if !path.exists() {
             return Err(eyre!("Path does not exist: {}", path.display()));
         }
@@ -231,7 +238,7 @@ impl SongQueue {
                     {
                         songs.push(Song {
                             metadata: extract_metadata(&path),
-                            path: path,
+                            path,
                         });
                     }
                 }

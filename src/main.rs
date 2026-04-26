@@ -1,5 +1,6 @@
 mod controls;
 mod db;
+mod fwatcher;
 mod logging;
 mod queue;
 mod tui;
@@ -8,7 +9,7 @@ mod utils;
 use color_eyre::{Result, eyre::WrapErr};
 use db::DB;
 use log::{debug, error, warn};
-use queue::SongQueue;
+use queue::{Song, SongQueue};
 use ratatui::crossterm::event::{self, KeyModifiers};
 use ratatui::widgets::TableState;
 use rodio::{OutputStream, Sink};
@@ -43,6 +44,7 @@ impl Model {
             // If unsuccessful, terminate app with error.
             let q = SongQueue::open_path(&args[1]).wrap_err("Error loading songs")?;
             debug!("Successfully loaded songs from {}", args[1]);
+            fwatcher::scanner(&args[1], tx.clone(), q.queue.clone());
             // reset everything except volume level
             let vol = saved_state.volume;
             saved_state = SavedState::default();
@@ -64,7 +66,7 @@ impl Model {
                 _stream: stream, // it's unused, but we can't have it dropped
                 sink,
             },
-            queue: queue,
+            queue,
             channel: Channel { rx, tx },
             db,
             safe_exit_expires_at: None,
@@ -186,6 +188,7 @@ enum Message {
     PlayFromSearch(usize),
     JumpTo(u8),
     Tick,
+    LiveAddNewSongs(Vec<Song>),
 }
 
 fn main() -> Result<()> {
@@ -490,11 +493,15 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
             None
         }
         Message::Tick => {
-            if let Some(expires_at) = &model.safe_exit_expires_at {
-                if Instant::now() > *expires_at {
-                    model.safe_exit_expires_at = None;
-                }
+            if let Some(expires_at) = &model.safe_exit_expires_at
+                && Instant::now() > *expires_at
+            {
+                model.safe_exit_expires_at = None;
             }
+            None
+        }
+        Message::LiveAddNewSongs(new_songs) => {
+            model.queue.add_new_songs(new_songs);
             None
         }
     };
