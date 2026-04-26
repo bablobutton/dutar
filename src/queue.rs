@@ -3,7 +3,7 @@ use color_eyre::{Result, eyre::WrapErr, eyre::eyre};
 use dirs::{audio_dir, home_dir};
 use infer::get_from_path;
 use log::{debug, error, info};
-use std::fs::{self, metadata};
+use std::fs;
 use std::path::PathBuf;
 
 pub struct SongQueue {
@@ -112,13 +112,26 @@ impl SongQueue {
 
     pub fn remove_current_song(&mut self) {
         if self.current_idx < self.queue.len() {
-            self.queue.remove(self.current_idx);
+            let removed = self.queue.remove(self.current_idx);
             if self.queue.is_empty() {
                 self.current_idx = 0;
             } else {
                 self.current_idx %= self.queue.len();
             }
+            let title = if let Some(metadata) = &removed.metadata {
+                metadata.title.as_str()
+            } else {
+                "Unknown"
+            };
+
+            debug!("Removed song [{}] from queue", title);
         }
+    }
+
+    pub fn remove_songs(&mut self, removed_songs: Vec<Song>) {
+        let removed_songs_count = removed_songs.len();
+        self.queue.retain(|song| !removed_songs.contains(song));
+        debug!("Removed {} songs from the queue", removed_songs_count);
     }
 
     pub fn add_new_songs(&mut self, new_songs: Vec<Song>) {

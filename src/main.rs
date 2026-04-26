@@ -189,6 +189,7 @@ enum Message {
     JumpTo(u8),
     Tick,
     LiveAddNewSongs(Vec<Song>),
+    LiveRemoveSongs(Vec<Song>),
 }
 
 fn main() -> Result<()> {
@@ -502,6 +503,10 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
         }
         Message::LiveAddNewSongs(new_songs) => {
             model.queue.add_new_songs(new_songs);
+            None
+        }
+        Message::LiveRemoveSongs(removed_songs) => {
+            model.queue.remove_songs(removed_songs);
             None
         }
     };
