@@ -313,10 +313,13 @@ fn handle_hotkey(keycode: event::KeyCode) -> Option<Message> {
 // this is where state gets updated
 // when adding new state transitions, consider adding tests to solidify them
 fn update(model: &mut Model, msg: Message) -> Option<Message> {
-    debug!(
-        "Current playback state [{:?}], popup [{:?}] <- Message [{:?}]",
-        model.app_state, model.popup, msg
-    );
+    let should_debug = !matches!(&msg, Message::Tick);
+    if should_debug {
+        debug!(
+            "Current playback state [{:?}], popup [{:?}] <- Message [{:?}]",
+            model.app_state, model.popup, msg
+        );
+    }
     let ret = match msg {
         Message::TogglePlay => {
             if model.app_state == AppState::Player(PlayerState::Playing) {
@@ -506,14 +509,33 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
             None
         }
         Message::LiveRemoveSongs(removed_songs) => {
-            model.queue.remove_songs(removed_songs);
+            let removed_current_flag = model.queue.remove_songs(removed_songs);
+
+            if removed_current_flag {
+                let was_playing = model.app_state == AppState::Player(PlayerState::Playing);
+
+                model.audio.sink.stop();
+
+                if model.queue.is_empty() {
+                    model.app_state = AppState::Init;
+                } else if was_playing {
+                    if let Err(e) = controls::play(model) {
+                        error!("Failed to switch playback after live removal: {e}");
+                    }
+                } else if let Err(e) = controls::load_and_not_play(model) {
+                    error!("Failed to preload after live removal: {e}");
+                }
+            }
+
             None
         }
     };
-    debug!(
-        "Updated state [{:?}], popup [{:?}], Message [{:?}]",
-        model.app_state, model.popup, ret
-    );
+    if should_debug {
+        debug!(
+            "Updated state [{:?}], popup [{:?}], Message [{:?}]",
+            model.app_state, model.popup, ret
+        );
+    }
     ret
 }
 

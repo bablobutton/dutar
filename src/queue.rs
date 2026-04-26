@@ -128,10 +128,28 @@ impl SongQueue {
         }
     }
 
-    pub fn remove_songs(&mut self, removed_songs: Vec<Song>) {
+    // returns a flag signaling that the currently selected song was removed
+    pub fn remove_songs(&mut self, removed_songs: Vec<Song>) -> bool {
         let removed_songs_count = removed_songs.len();
+
+        // song can be selected, but not playing
+        let removed_current_song = if let Some(curr_selected_song) = self.get_current_song() {
+            removed_songs.contains(curr_selected_song)
+        } else {
+            false
+        };
+
         self.queue.retain(|song| !removed_songs.contains(song));
+
+        if self.queue.is_empty() {
+            self.current_idx = 0
+        } else {
+            self.current_idx %= self.queue.len();
+        }
+
         debug!("Removed {} songs from the queue", removed_songs_count);
+
+        removed_current_song
     }
 
     pub fn add_new_songs(&mut self, new_songs: Vec<Song>) {
