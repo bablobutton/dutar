@@ -518,15 +518,18 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
 
                 if model.queue.is_empty() {
                     model.app_state = AppState::Init;
-                } else if was_playing {
-                    if let Err(e) = controls::play(model) {
-                        error!("Failed to switch playback after live removal: {e}");
-                    }
-                } else if let Err(e) = controls::load_and_not_play(model) {
-                    error!("Failed to preload after live removal: {e}");
+                    return None;
+                }
+                let result = if was_playing {
+                    controls::load_and_play(model)
+                } else {
+                    controls::load_and_not_play(model)
+                };
+
+                if let Err(e) = result {
+                    error!("Failed to update playback after live removal of songs with: {e}");
                 }
             }
-
             None
         }
     };

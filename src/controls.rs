@@ -49,7 +49,7 @@ fn load_song(model: &mut Model) -> Result<()> {
     Ok(())
 }
 
-fn load_and_play(model: &mut Model) -> Result<()> {
+pub fn load_and_play(model: &mut Model) -> Result<()> {
     load_song(model)?;
     model.audio.sink.play(); // because sink.clear() pauses
     Ok(())
