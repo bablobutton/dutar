@@ -1,4 +1,4 @@
-use crate::{Message, Model};
+use crate::{Message, Model, SkipDirection};
 use color_eyre::{
     Result,
     eyre::{OptionExt, eyre},
@@ -103,26 +103,30 @@ pub fn play_previous(model: &mut Model) -> Result<()> {
     Ok(())
 }
 
-pub fn forward_seconds(model: &mut Model, seconds: u64) {
+pub fn quadratic_skip(model: &mut Model) {
     let sink = &model.audio.sink;
-    let curr_duration = sink.get_pos();
-    let skip_seconds = Duration::from_secs(seconds);
-    let curr_duration = curr_duration.saturating_add(skip_seconds);
-    if let Err(e) = sink.try_seek(curr_duration) {
-        error!("{e}");
-    }
-    debug!("Forward {seconds} seconds, current_duration={curr_duration:?}");
-}
+    let mut curr_duration = sink.get_pos();
 
-pub fn backward_seconds(model: &mut Model, seconds: u64) {
-    let sink = &model.audio.sink;
-    let curr_duration = sink.get_pos();
-    let skip_seconds = Duration::from_secs(seconds);
-    let curr_duration = curr_duration.saturating_sub(skip_seconds);
+    if let Some(skip) = &model.last_skip
+        && let Some(total_duration) = get_current_song_total_duration(model)
+    {
+        let max_skip_current_song = total_duration / 10;
+        let desired_skip = Duration::from_secs(skip.streak.pow(2) as u64);
+        match skip.direction {
+            SkipDirection::Backwards => {
+                curr_duration =
+                    curr_duration.saturating_sub(desired_skip.min(max_skip_current_song));
+            }
+            SkipDirection::Forwards => {
+                curr_duration =
+                    curr_duration.saturating_add(desired_skip.min(max_skip_current_song));
+            }
+        }
+    }
+
     if let Err(e) = sink.try_seek(curr_duration) {
         error!("{e}");
     }
-    debug!("Backward {seconds} seconds, current_duration={curr_duration:?}");
 }
 
 pub fn get_current_duration(model: &Model) -> Duration {
@@ -138,10 +142,10 @@ pub fn set_current_duration(model: &Model, duration: Duration) {
 }
 
 pub fn get_current_song_total_duration(model: &Model) -> Option<Duration> {
-    if let Some(song) = model.queue.get_current_song() {
-        if let Some(metadata) = &song.metadata {
-            return Some(Duration::from_secs(metadata.duration_seconds));
-        }
+    if let Some(song) = model.queue.get_current_song()
+        && let Some(metadata) = &song.metadata
+    {
+        return Some(Duration::from_secs(metadata.duration_seconds));
     }
     None
 }
