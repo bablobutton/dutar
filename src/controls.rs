@@ -125,28 +125,6 @@ pub fn quadratic_skip(model: &mut Model) {
     }
 }
 
-/* pub fn forward_seconds(model: &mut Model, seconds: u64) {
-    let sink = &model.audio.sink;
-    let curr_duration = sink.get_pos();
-    let skip_seconds = Duration::from_secs(seconds);
-    let curr_duration = curr_duration.saturating_add(skip_seconds);
-    if let Err(e) = sink.try_seek(curr_duration) {
-        error!("{e}");
-    }
-    debug!("Forward {seconds} seconds, current_duration={curr_duration:?}");
-}
-
-pub fn backward_seconds(model: &mut Model, seconds: u64) {
-    let sink = &model.audio.sink;
-    let curr_duration = sink.get_pos();
-    let skip_seconds = Duration::from_secs(seconds);
-    let curr_duration = curr_duration.saturating_sub(skip_seconds);
-    if let Err(e) = sink.try_seek(curr_duration) {
-        error!("{e}");
-    }
-    debug!("Backward {seconds} seconds, current_duration={curr_duration:?}");
-} */
-
 pub fn get_current_duration(model: &Model) -> Duration {
     model.audio.sink.get_pos()
 }

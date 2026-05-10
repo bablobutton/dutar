@@ -325,12 +325,6 @@ fn handle_hotkey(keycode: event::KeyCode) -> Option<Message> {
 // this is where state gets updated
 // when adding new state transitions, consider adding tests to solidify them
 fn update(model: &mut Model, msg: Message) -> Option<Message> {
-    if msg != Message::Tick {
-        debug!(
-            "Current playback state [{:?}], popup [{:?}] <- Message [{:?}]",
-            model.app_state, model.popup, msg
-        );
-    }
     let ret = match msg {
         Message::TogglePlay => {
             if model.app_state == AppState::Player(PlayerState::Playing) {
@@ -618,18 +612,17 @@ fn handle_search(model: &mut Model) -> Option<Message> {
 
 fn handle_skip(model: &mut Model, direction: SkipDirection) {
     const PRESS_GRACE: Duration = Duration::from_millis(250);
-    const STREAK_LEVELUP_COOLDOWN: Duration = Duration::from_millis(3000);
-    const MAX_STREAK: u32 = 4;
+    const STREAK_LEVELUP_COOLDOWN: Duration = Duration::from_secs(1);
+    const MAX_STREAK: u32 = 16;
 
     let current_instant = Instant::now();
     if let Some(skip) = &mut model.last_skip {
         if skip.direction == direction
             && current_instant.duration_since(skip.last_fired) < PRESS_GRACE
+            && current_instant.duration_since(skip.last_streak_updated) >= STREAK_LEVELUP_COOLDOWN
         {
-            if current_instant.duration_since(skip.last_streak_updated) >= STREAK_LEVELUP_COOLDOWN {
-                skip.streak = (skip.streak + 1).min(MAX_STREAK);
-                skip.last_streak_updated = current_instant;
-            }
+            skip.streak = (skip.streak + 1).min(MAX_STREAK);
+            skip.last_streak_updated = current_instant;
         }
 
         if skip.direction != direction
