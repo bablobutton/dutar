@@ -107,15 +107,19 @@ pub fn quadratic_skip(model: &mut Model) {
     let sink = &model.audio.sink;
     let mut curr_duration = sink.get_pos();
 
-    if let Some(skip) = &model.last_skip {
+    if let Some(skip) = &model.last_skip
+        && let Some(total_duration) = get_current_song_total_duration(model)
+    {
+        let max_skip_current_song = total_duration / 10;
+        let desired_skip = Duration::from_secs(skip.streak.pow(2) as u64);
         match skip.direction {
             SkipDirection::Backwards => {
                 curr_duration =
-                    curr_duration.saturating_sub(Duration::from_secs(skip.streak.pow(2) as u64));
+                    curr_duration.saturating_sub(desired_skip.min(max_skip_current_song));
             }
             SkipDirection::Forwards => {
                 curr_duration =
-                    curr_duration.saturating_add(Duration::from_secs(skip.streak.pow(2) as u64));
+                    curr_duration.saturating_add(desired_skip.min(max_skip_current_song));
             }
         }
     }
@@ -138,10 +142,10 @@ pub fn set_current_duration(model: &Model, duration: Duration) {
 }
 
 pub fn get_current_song_total_duration(model: &Model) -> Option<Duration> {
-    if let Some(song) = model.queue.get_current_song() {
-        if let Some(metadata) = &song.metadata {
-            return Some(Duration::from_secs(metadata.duration_seconds));
-        }
+    if let Some(song) = model.queue.get_current_song()
+        && let Some(metadata) = &song.metadata
+    {
+        return Some(Duration::from_secs(metadata.duration_seconds));
     }
     None
 }
