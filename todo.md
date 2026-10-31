@@ -1,3 +1,11 @@
+## Bugs
+
+* if holding skip button (L or J) it would keep skipping even after you release. It's probably processing too many presses. Can even result in skipping multiple songs. Same when holding (N or J) - seems like it'll keep skipping even after you release.
+We should probably have some general solution for holding the keys. Maybe ignore extra presses in a given time window?
+Interesting to look how neovim handles that because they probably do.
+
+
+
 ## Rough plan of things to do in no particular order
 
 * Support creating playlists.
@@ -24,10 +32,13 @@
     - this needs to be supported at crossterm level but they haven't implemented kitty protocol for this yet
     - https://docs.rs/crossterm/latest/crossterm/event/struct.KeyboardEnhancementFlags.html
     - we can't just create mapping йцукен -> qwerty due to some edge cases
+    - workaround for this could be implementing platform support for media keys - from above.
 
 * Ability to repeat songs
 * Hide songs from this session without actualy deleting them
 * The Artist, Title, Album names of the song currently in focus move so you can see all of the data
+* Some way to scroll list without switching songs (<C-d>/<C-u> like vim? ).
+    - Or, alternatively we could make <C-n>/<C-p> to change selection instead of switching songs. Selected song can then be played when hit say <Enter>. <C-d>/<C-u> like vim can still be added.
 
 ...
 P2P network - ?
