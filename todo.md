@@ -40,8 +40,12 @@ Interesting to look how neovim handles that because they probably do.
 * Some way to scroll list without switching songs (<C-d>/<C-u> like vim? ).
     - Or, alternatively we could make <C-n>/<C-p> to change selection instead of switching songs. Selected song can then be played when hit say <Enter>. <C-d>/<C-u> like vim can still be added.
 
+
 ...
-P2P network - ?
+
+* P2P network - ? Do we even need this? It's intended to allow searches and downloads between the users, so a centralized collection is not needed. But maybe an over complication - we can just let users download from wherever.
+
+* Sync with user-provided cloud drive - ? gdrive, yandex, s3? This would solve most use cases of p2p network. I think we should have this before multi-platform support.
 
 
 ## Side quests
