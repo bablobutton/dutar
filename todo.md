@@ -3,6 +3,9 @@
 * if holding skip button (L or J) it would keep skipping even after you release. It's probably processing too many presses. Can even result in skipping multiple songs. Same when holding (N or J) - seems like it'll keep skipping even after you release.
 We should probably have some general solution for holding the keys. Maybe ignore extra presses in a given time window?
 Interesting to look how neovim handles that because they probably do.
+    - I think this might be because of time delay on elm loop. On another system this issue didn't exist likely because holding a key didn't send events as frequently. Just reduce the sleep time in that loop and we'll be fine.
+
+* sometimes when opening player, then playlist is empty even if the directory was loaded on the previous run. somehow persistence is lost.
 
 
 
