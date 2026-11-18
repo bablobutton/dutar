@@ -7,33 +7,26 @@ use log::error;
 use std::fs;
 use std::path::Path;
 
-pub fn for_each_subdir<F>(dir: &Path, cb: &mut F)
+pub fn for_each_file<F>(dir: &Path, cb: &mut F)
 where
-    F: FnMut(&fs::DirEntry),
+    F: FnMut(&Path),
 {
-    if dir.is_dir() {
-        match fs::read_dir(dir) {
-            Ok(entries) => {
-                for entry in entries.flatten() {
-                    let path = entry.path();
-                    if path.is_dir() {
-                        for_each_subdir(path.as_path(), cb);
-                    } else {
-                        cb(&entry);
-                    }
+    match fs::read_dir(dir) {
+        Ok(entries) => {
+            for path in entries.flatten().map(|e| e.path()) {
+                if path.is_dir() {
+                    for_each_file(&path, cb);
+                } else {
+                    cb(&path);
                 }
             }
-            Err(error) => {
-                error!("Error traversing directories: {error}");
-            }
         }
+        Err(error) => error!("Error traversing {}: {error}", dir.display()),
     }
 }
 
 pub fn extract_metadata(path: &Path) -> Option<Metadata> {
-    // try read fromat from path extention
     let tagged_file = read_from_path(path)
-        // if couldn't read from extension, read from contents
         .or_else(|_| Probe::open(path)?.guess_file_type()?.read())
         .inspect_err(|e| {
             error!(
@@ -47,36 +40,23 @@ pub fn extract_metadata(path: &Path) -> Option<Metadata> {
         .primary_tag()
         .or_else(|| tagged_file.first_tag());
 
-    match tag {
-        Some(t) => Some(Metadata {
-            title: t.title().map(|s| s.to_string()).unwrap_or_else(|| {
+    Some(Metadata {
+        title: tag
+            .and_then(|t| t.title())
+            .map(|s| s.into_owned())
+            .unwrap_or_else(|| {
                 path.file_stem()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("")
-                    .to_string()
+                    .map(|s| s.to_string_lossy().into_owned())
+                    .unwrap_or_default()
             }),
-            artist: t
-                .artist()
-                .map(|s| s.to_string())
-                .unwrap_or_else(|| "".to_string()),
-            album: t
-                .album()
-                .map(|s| s.to_string())
-                .unwrap_or_else(|| "".to_string()),
-            duration_seconds: tagged_file.properties().duration().as_secs(),
-        }),
-        None => Some(Metadata {
-            title: "".to_string(),
-            artist: "".to_string(),
-            album: "".to_string(),
-            duration_seconds: tagged_file.properties().duration().as_secs(),
-        }),
-    }
-}
-
-pub fn count_digits(num: u64) -> usize {
-    if num == 0 {
-        return 1;
-    }
-    (num.ilog10() + 1) as usize
+        artist: tag
+            .and_then(|t| t.artist())
+            .map(|s| s.into_owned())
+            .unwrap_or_default(),
+        album: tag
+            .and_then(|t| t.album())
+            .map(|s| s.into_owned())
+            .unwrap_or_default(),
+        duration_seconds: tagged_file.properties().duration().as_secs(),
+    })
 }

@@ -1,6 +1,4 @@
-use std::time::{Duration, Instant};
-
-use crate::{Model, controls, utils};
+use crate::{AppState, Model, PlayerState, controls};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
@@ -18,18 +16,15 @@ pub fn render_footer(model: &Model, frame: &mut Frame, area: Rect) {
         .horizontal_margin(1)
         .areas(area);
 
-    if model
-        .safe_exit_expires_at
-        .is_some_and(|expiration_time| Instant::now() <= expiration_time)
-    {
-        render_safe_exit(model, frame, safe_exit_area);
+    if model.safe_exit_active() {
+        render_safe_exit(frame, safe_exit_area);
     }
 
     render_playing_status(model, frame, status_area);
     render_bars(model, frame, bars_area);
 }
 
-fn render_safe_exit(_: &Model, frame: &mut Frame, area: Rect) {
+fn render_safe_exit(frame: &mut Frame, area: Rect) {
     let styled_text = Span::styled(
         "Press Ctrl-C again to exit",
         Style::default().fg(Color::DarkGray),
@@ -39,65 +34,34 @@ fn render_safe_exit(_: &Model, frame: &mut Frame, area: Rect) {
 }
 
 fn render_playing_status(model: &Model, frame: &mut Frame, area: Rect) {
-    let (title, artist, album) = model
-        .queue
-        .get_current_song()
-        .and_then(|song| song.metadata.clone())
-        .map(|meta| (meta.title, meta.artist, meta.album))
-        .unwrap_or_else(|| {
-            (
-                String::from("Unknown"),
-                String::from("Unknown"),
-                String::from("Unknown"),
-            )
-        });
-
-    let state_text = match &model.app_state {
-        crate::AppState::Player(crate::PlayerState::Playing) => "Playing",
-        _ => "Paused",
+    let yellow = |s: &str| {
+        Span::styled(
+            if s.is_empty() { "Unknown" } else { s }.to_string(),
+            Style::default().fg(Color::Yellow),
+        )
     };
 
-    let mut span_vec = Vec::<Span>::new();
-    if model.queue.is_empty() {
-        span_vec.push(Span::raw("Queue is empty"));
-    } else {
-        span_vec.push(Span::raw(state_text));
-        span_vec.push(Span::raw(" "));
-        if title.is_empty() && artist.is_empty() && album.is_empty() {
-            span_vec.push(Span::styled(
-                "Unknown song",
-                Style::default().fg(Color::Yellow),
-            ));
-        } else {
-            let title = if title.is_empty() {
-                "Unknown".to_string()
-            } else {
-                title
-            };
+    let state_text = match model.app_state {
+        AppState::Player(PlayerState::Playing) => "Playing ",
+        _ => "Paused ",
+    };
 
-            let artist = if artist.is_empty() {
-                "Unknown".to_string()
-            } else {
-                artist
-            };
+    let spans = match model.queue.get_current_song() {
+        None => vec![Span::raw("Queue is empty")],
+        Some(song) => match &song.metadata {
+            Some(m) if !(m.title.is_empty() && m.artist.is_empty() && m.album.is_empty()) => vec![
+                Span::raw(state_text),
+                yellow(&m.title),
+                Span::raw(" by "),
+                yellow(&m.artist),
+                Span::raw(" from "),
+                yellow(&m.album),
+            ],
+            _ => vec![Span::raw(state_text), yellow("Unknown song")],
+        },
+    };
 
-            let album = if album.is_empty() {
-                "Unknown".to_string()
-            } else {
-                album
-            };
-
-            span_vec.push(Span::styled(title, Style::default().fg(Color::Yellow)));
-            span_vec.push(Span::raw(" by "));
-            span_vec.push(Span::styled(artist, Style::default().fg(Color::Yellow)));
-            span_vec.push(Span::raw(" from "));
-            span_vec.push(Span::styled(album, Style::default().fg(Color::Yellow)));
-        }
-    }
-
-    let line = Line::from(span_vec);
-
-    frame.render_widget(Paragraph::new(line), area);
+    frame.render_widget(Paragraph::new(Line::from(spans)), area);
 }
 
 fn render_bars(model: &Model, frame: &mut Frame, area: Rect) {
@@ -118,7 +82,7 @@ fn render_progress_bar(model: &Model, frame: &mut Frame, area: Rect) {
     let current_secs = controls::get_current_duration(model).as_secs();
 
     let total_secs = controls::get_current_song_total_duration(model)
-        .unwrap_or(Duration::ZERO)
+        .unwrap_or_default()
         .as_secs();
 
     let ratio = if total_secs > 0 {
@@ -127,10 +91,8 @@ fn render_progress_bar(model: &Model, frame: &mut Frame, area: Rect) {
         0f64
     };
 
-    let minutes_width_current = utils::count_digits(current_secs / 60).max(2);
-    let minutes_width_total = utils::count_digits(total_secs / 60).max(2);
     let label = format!(
-        "{:0minutes_width_current$}:{:02} - {:0minutes_width_total$}:{:02}",
+        "{:02}:{:02} - {:02}:{:02}",
         current_secs / 60,
         current_secs % 60,
         total_secs / 60,

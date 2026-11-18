@@ -3,8 +3,6 @@
 * if holding skip button (L or J) it would keep skipping even after you release. It's probably processing too many presses. Can even result in skipping multiple songs. Same when holding (N or J) - seems like it'll keep skipping even after you release.
 We should probably have some general solution for holding the keys. Maybe ignore extra presses in a given time window?
 Interesting to look how neovim handles that because they probably do.
-    - I think this might be because of time delay on elm loop. On another system this issue didn't exist likely because holding a key didn't send events as frequently. Just reduce the sleep time in that loop and we'll be fine.
-
 
 
 ## Rough plan of things to do in no particular order
@@ -20,6 +18,9 @@ Interesting to look how neovim handles that because they probably do.
 * Exponential (or quadradtic) skipping intervals when holding skip button (J or L). Example: holding L should skip forward 1s, 2s, 4s, 8s, 16s...
 * "Schedule next" hotkey.
 * Make OS recognize dutar as music player so that headset integration works, multi media keys, so on.
+* Volume is a bit too loud on 5%. Need different volume scaling.
+
+* Mapping Event names to commands went wrong. The initial idea was that we could make those 1-to-1 and it would make our life easier to add new features. But no, those concepts should be disjoint. It's best if we remove commands and command pallete altogether. Later, we can add them but with more thought + they should correspond to cli command arguments when we allow to control player from shell `dutar` command in the future. So that's far away from now.
 
 * Search
     - Need fuzzy search among all fields at once - artist, title, album. Can probably reuse ripgrep.
