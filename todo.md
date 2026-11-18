@@ -3,23 +3,18 @@
 * if holding skip button (L or J) it would keep skipping even after you release. It's probably processing too many presses. Can even result in skipping multiple songs. Same when holding (N or J) - seems like it'll keep skipping even after you release.
 We should probably have some general solution for holding the keys. Maybe ignore extra presses in a given time window?
 Interesting to look how neovim handles that because they probably do.
-    - I think this might be because of time delay on elm loop. On another system this issue didn't exist likely because holding a key didn't send events as frequently. Just reduce the sleep time in that loop and we'll be fine.
-
 
 
 ## Rough plan of things to do in no particular order
 
 * Support creating playlists.
-* Command bar.
-    - dropdown with suggestions filtered by fuzzy search
-    - select from dropdown on C-n and C-p
-    - autocomplete from dropdown selector on TAB press or enter
 * Some way of displaying and playing albums, playlists, artists.
 * Shuffle, repeat
 * Album cover -> ASCII art
 * Exponential (or quadradtic) skipping intervals when holding skip button (J or L). Example: holding L should skip forward 1s, 2s, 4s, 8s, 16s...
 * "Schedule next" hotkey.
 * Make OS recognize dutar as music player so that headset integration works, multi media keys, so on.
+* Volume is a bit too loud on 5%. Need different volume scaling.
 
 * Search
     - Need fuzzy search among all fields at once - artist, title, album. Can probably reuse ripgrep.

@@ -1,14 +1,13 @@
 use crate::Model;
-use ratatui::layout::Constraint;
-use ratatui::layout::Rect;
+use ratatui::layout::{Constraint, Margin, Rect};
 use ratatui::style::Color;
 use ratatui::style::Style;
+use ratatui::text::{Line, Span};
 use ratatui::widgets::BorderType;
 use ratatui::{
     Frame,
     widgets::{Block, Borders, Row, Table, TableState},
 };
-use std::ffi::OsStr;
 
 const SCROLL_PADDING: usize = 3;
 
@@ -41,51 +40,34 @@ pub fn render_queue(model: &mut Model, frame: &mut Frame, chunk: Rect) {
     let visual_selection_idx =
         playing_real_idx.and_then(|real| display_songs.iter().position(|(idx, _)| *idx == real));
 
-    model.ui.song_queue_table.select(visual_selection_idx);
+    model.queue_table.select(visual_selection_idx);
 
-    let header = Row::new(vec!["Artist", "Title", "Album", "Duration"])
-        .style(Style::default().fg(Color::Yellow));
+    let header = match model.search {
+        Some(_) => Row::default().height(1),
+        None => Row::new(vec!["Artist", "Title", "Album", "Duration"])
+            .style(Style::default().fg(Color::Yellow)),
+    };
 
     let rows: Vec<Row> = display_songs
         .iter()
-        .map(|(_real_idx, song)| {
-            let (artist, title, album, duration) = match &song.metadata {
-                Some(meta) => (
-                    meta.artist.as_str(),
-                    meta.title.as_str(),
-                    meta.album.as_str(),
-                    format!(
-                        "{}:{:02}",
-                        meta.duration_seconds / 60,
-                        meta.duration_seconds % 60
-                    ),
-                ),
-                None => {
-                    let filename = song
-                        .path
-                        .file_name()
-                        .and_then(|n| n.to_str())
-                        .unwrap_or("Unknown");
-                    (filename, "", "", String::new())
-                }
-            };
-
-            let artist = if artist.is_empty() {
-                song.path
-                    .file_name()
-                    .unwrap_or(OsStr::new("Unknown"))
-                    .to_str()
-                    .unwrap_or("")
-            } else {
-                artist
-            };
-
-            Row::new(vec![
-                artist.to_string(),
-                title.to_string(),
-                album.to_string(),
-                duration,
-            ])
+        .map(|(_, song)| {
+            let filename = song
+                .path
+                .file_name()
+                .map_or("Unknown".into(), |n| n.to_string_lossy());
+            match &song.metadata {
+                Some(m) => Row::new(vec![
+                    if m.artist.is_empty() {
+                        filename.into_owned()
+                    } else {
+                        m.artist.clone()
+                    },
+                    m.title.clone(),
+                    m.album.clone(),
+                    format!("{}:{:02}", m.duration_seconds / 60, m.duration_seconds % 60),
+                ]),
+                None => Row::new(vec![filename.into_owned()]),
+            }
         })
         .collect();
 
@@ -111,7 +93,19 @@ pub fn render_queue(model: &mut Model, frame: &mut Frame, chunk: Rect) {
         )
         .row_highlight_style(Style::default().fg(Color::Black).bg(Color::Yellow));
 
-    apply_scroll_padding(&mut model.ui.song_queue_table, visual_selection_idx, &chunk);
+    apply_scroll_padding(&mut model.queue_table, visual_selection_idx, &chunk);
 
-    frame.render_stateful_widget(table, chunk, &mut model.ui.song_queue_table);
+    frame.render_stateful_widget(table, chunk, &mut model.queue_table);
+
+    if let Some(input) = &model.search {
+        let header_area = Rect {
+            height: 1,
+            ..chunk.inner(Margin::new(1, 1))
+        };
+        let line = Line::from(vec![
+            Span::raw("? > "),
+            Span::styled(input.as_str(), Style::default().fg(Color::Yellow)),
+        ]);
+        frame.render_widget(line, header_area);
+    }
 }

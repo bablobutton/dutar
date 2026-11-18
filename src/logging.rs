@@ -1,7 +1,7 @@
 use dirs::data_local_dir;
 use env_logger::{self, Builder, Env, Target};
 use std::env;
-use std::fs::{self, File};
+use std::fs;
 use std::io::BufWriter;
 use std::path::PathBuf;
 
