@@ -22,6 +22,8 @@ pub fn render_hints_popup(model: &Model, frame: &mut Frame, area: Rect) {
         ["=/+", "Volume up"],
         ["-/_", "Volume down"],
         ["?", "Show hints"],
+        ["/", "Search"],
+        ["Esc", "Clear search"],
         ["0..=9", "Jump within track"],
     ];
 
@@ -49,45 +51,24 @@ pub fn render_hints_popup(model: &Model, frame: &mut Frame, area: Rect) {
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .areas(popup_area);
 
-    // Render hotkeys on the left
-    let mut hotkey_items = Vec::<ListItem>::new();
-    for pair in hotkey_pairs {
-        let hint = pair[0];
-        let desc = pair[1];
-        hotkey_items.push(ListItem::new(Line::from(vec![
-            Span::styled(hint, Style::default()),
+    frame.render_widget(hint_list("Hotkeys", "", &hotkey_pairs), hotkey_area);
+    frame.render_widget(hint_list("Commands", ":", &command_pairs), command_area);
+}
+
+fn hint_list<'a>(title: &'a str, prefix: &str, pairs: &[[&'a str; 2]]) -> List<'a> {
+    let items = pairs.iter().map(|[key, desc]| {
+        ListItem::new(Line::from(vec![
+            Span::raw(format!("{prefix}{key}")),
             Span::styled(" - ", Style::default().fg(Color::DarkGray)),
-            Span::styled(desc, Style::default().fg(Color::DarkGray)),
-        ])));
-    }
-
-    let hotkey_block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .title("Hotkeys");
-
-    let hotkey_list = List::new(hotkey_items).block(hotkey_block);
-    frame.render_widget(hotkey_list, hotkey_area);
-
-    // Render commands on the right
-    let mut command_items = Vec::<ListItem>::new();
-    for pair in command_pairs {
-        let cmd = pair[0];
-        let desc = pair[1];
-        command_items.push(ListItem::new(Line::from(vec![
-            Span::styled(format!(":{cmd}"), Style::default()),
-            Span::styled(" - ", Style::default().fg(Color::DarkGray)),
-            Span::styled(desc, Style::default().fg(Color::DarkGray)),
-        ])));
-    }
-
-    let command_block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .title("Commands");
-
-    let command_list = List::new(command_items).block(command_block);
-    frame.render_widget(command_list, command_area);
+            Span::styled(*desc, Style::default().fg(Color::DarkGray)),
+        ]))
+    });
+    List::new(items).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
+            .title(title),
+    )
 }
 
 fn hints_area(hotkey_pairs: &[[&str; 2]], command_pairs: &[[&str; 2]], r: Rect) -> Rect {

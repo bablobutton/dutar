@@ -18,10 +18,7 @@ impl DB {
         // Windows: C:\Users\<user>\AppData\Roaming\dutar\dutar.db
         let mut db_path = data_local_dir().ok_or_eyre("Couldn't get data dir path")?;
         db_path.push("dutar");
-        if !db_path.exists() {
-            fs::create_dir_all(&db_path)?;
-            debug!("DB directory created : {db_path:?}");
-        }
+        fs::create_dir_all(&db_path)?;
         db_path.push("dutar.db");
 
         let mut conn = Connection::open(db_path)?;
@@ -48,31 +45,18 @@ impl DB {
     }
 
     pub fn read_saved_state(&self) -> Result<SavedState> {
-        let mut sql = self.conn.prepare(
-            r"
-            SELECT
-                volume,
-                current_song_index,
-                current_duration_ms
-            FROM saved_state",
+        let saved_state = self.conn.query_row(
+            "SELECT volume, current_song_index, current_duration_ms FROM saved_state WHERE id = 1",
+            [],
+            |row| {
+                Ok(SavedState {
+                    volume: row.get(0)?,
+                    current_song_index: row.get(1)?,
+                    current_duration: Duration::from_millis(row.get(2)?),
+                })
+            },
         )?;
-        let mut rows = sql.query([])?;
-        let row = rows
-            .next()?
-            .ok_or_eyre("1st row of saved_data should exist")?;
-
-        let volume: f32 = row.get(0)?;
-        let current_song_index: usize = row.get(1)?;
-        let current_duration: Duration = Duration::from_millis(row.get(2)?);
-
-        let saved_state = SavedState {
-            volume,
-            current_song_index,
-            current_duration,
-        };
-
-        debug!("Read saved_state: {:?}", saved_state);
-
+        debug!("Read saved_state: {saved_state:?}");
         Ok(saved_state)
     }
 
@@ -96,7 +80,9 @@ impl DB {
     }
 
     pub fn read_queue_songs_paths(&self) -> Result<Vec<PathBuf>> {
-        let mut sql = self.conn.prepare("SELECT file_path FROM queue_songs")?;
+        let mut sql = self
+            .conn
+            .prepare("SELECT file_path FROM queue_songs ORDER BY id")?;
         let rows = sql.query_map([], |row| row.get::<_, String>(0))?;
         let paths: Vec<PathBuf> = rows
             .filter_map(|r| match r {
@@ -118,8 +104,8 @@ impl DB {
 
         {
             let mut stmt = tx.prepare("INSERT INTO queue_songs (file_path) VALUES (?)")?;
-            for song in song_queue.iter() {
-                stmt.execute(params![song.path.to_str()])?;
+            for path in song_queue.iter().filter_map(|s| s.path.to_str()) {
+                stmt.execute(params![path])?;
             }
         }
 

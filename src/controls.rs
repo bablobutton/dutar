@@ -4,43 +4,37 @@ use color_eyre::{
     eyre::{OptionExt, eyre},
 };
 use log::{debug, error, info};
-use rodio::{Decoder, decoder::DecoderBuilder, source::EmptyCallback};
+use rodio::{decoder::DecoderBuilder, source::EmptyCallback};
 use std::fs::File;
 use std::io::BufReader;
 use std::sync::mpsc::Sender;
 use std::time::Duration;
 
 pub fn play(model: &mut Model) -> Result<()> {
-    if model.audio.sink.len() > 0 {
-        model.audio.sink.play();
+    if model.audio.sink.empty() {
+        load_and_play(model)
     } else {
-        load_and_play(model)?;
+        model.audio.sink.play();
+        Ok(())
     }
-    Ok(())
 }
 
-pub fn pause(model: &mut Model) {
+pub fn pause(model: &Model) {
     model.audio.sink.pause();
 }
 
-fn get_source(reader: BufReader<File>) -> Option<Decoder<BufReader<File>>> {
-    DecoderBuilder::new()
-        .with_seekable(true)
-        .with_data(reader)
-        .build()
-        .ok()
-}
-
-fn load_song(model: &mut Model) -> Result<()> {
+pub fn load_song(model: &mut Model) -> Result<()> {
     let song = model
         .queue
         .get_current_song()
         .ok_or_eyre("Error getting current song")?;
-    debug!("Loading from {} and playing", song.path.display());
-    let file = File::open(song.path.as_path())?;
-    let reader = BufReader::with_capacity(1024 * 1024 * 5, file);
-    let source = get_source(reader).ok_or_eyre("Failed to decode")?;
-    model.audio.sink.clear(); // clear from current sounds (and callbacks)
+    debug!("Loading from {}", song.path.display());
+    let file = File::open(&song.path)?;
+    let source = DecoderBuilder::new()
+        .with_seekable(true)
+        .with_data(BufReader::with_capacity(1024 * 1024 * 5, file))
+        .build()?;
+    model.audio.sink.clear();
     model.audio.sink.append(source);
     model
         .audio
@@ -49,20 +43,13 @@ fn load_song(model: &mut Model) -> Result<()> {
     Ok(())
 }
 
-fn load_and_play(model: &mut Model) -> Result<()> {
+pub fn load_and_play(model: &mut Model) -> Result<()> {
     load_song(model)?;
-    model.audio.sink.play(); // because sink.clear() pauses
+    model.audio.sink.play();
     Ok(())
 }
 
-pub fn load_and_not_play(model: &mut Model) -> Result<()> {
-    load_song(model)
-}
-
-// rodio does not support hooks on sound end,
-// instead they allow to append a "callback" source to sink
-// so when the sound has ended, the callback is executed
-// to notify the event loop to play next song
+// rodio has no hook on sound end, so a callback source appended after the song notifies the event loop
 // https://github.com/RustAudio/rodio/issues/651
 fn create_callback_source_play_next(tx: Sender<Message>) -> EmptyCallback {
     EmptyCallback::new(Box::new(move || {
@@ -86,11 +73,9 @@ pub fn play_next(model: &mut Model) -> Result<()> {
 }
 
 pub fn play_previous(model: &mut Model) -> Result<()> {
-    // if duration is > 3 sec, restart song.
-    // otherwise, play previous
-    let curr_duration = get_current_duration(model);
-    if curr_duration > Duration::from_secs(3) {
+    if get_current_duration(model) > Duration::from_secs(3) {
         set_current_duration(model, Duration::ZERO);
+        model.audio.sink.play();
         return Ok(());
     }
 
@@ -103,30 +88,18 @@ pub fn play_previous(model: &mut Model) -> Result<()> {
     Ok(())
 }
 
-pub fn quadratic_skip(model: &mut Model) {
-    let sink = &model.audio.sink;
-    let mut curr_duration = sink.get_pos();
-
-    if let Some(skip) = &model.last_skip
-        && let Some(total_duration) = get_current_song_total_duration(model)
-    {
-        let max_skip_current_song = total_duration / 10;
-        let desired_skip = Duration::from_secs(skip.streak.pow(2) as u64);
-        match skip.direction {
-            SkipDirection::Backwards => {
-                curr_duration =
-                    curr_duration.saturating_sub(desired_skip.min(max_skip_current_song));
-            }
-            SkipDirection::Forwards => {
-                curr_duration =
-                    curr_duration.saturating_add(desired_skip.min(max_skip_current_song));
-            }
-        }
-    }
-
-    if let Err(e) = sink.try_seek(curr_duration) {
-        error!("{e}");
-    }
+pub fn quadratic_skip(model: &Model) {
+    let (Some(skip), Some(total)) = (&model.last_skip, get_current_song_total_duration(model))
+    else {
+        return;
+    };
+    let step = Duration::from_secs(skip.streak.pow(2) as u64).min(total / 10);
+    let pos = get_current_duration(model);
+    let target = match skip.direction {
+        SkipDirection::Backwards => pos.saturating_sub(step),
+        SkipDirection::Forwards => pos + step,
+    };
+    set_current_duration(model, target);
 }
 
 pub fn get_current_duration(model: &Model) -> Duration {
@@ -134,62 +107,33 @@ pub fn get_current_duration(model: &Model) -> Duration {
 }
 
 pub fn set_current_duration(model: &Model, duration: Duration) {
-    let sink = &model.audio.sink;
-    if let Err(e) = sink.try_seek(duration) {
-        error!("{e}");
+    if let Err(e) = model.audio.sink.try_seek(duration) {
+        error!("Error seeking to {duration:?}: {e}");
     }
-    debug!("Set current duration to {duration:?}");
 }
 
 pub fn get_current_song_total_duration(model: &Model) -> Option<Duration> {
-    if let Some(song) = model.queue.get_current_song()
-        && let Some(metadata) = &song.metadata
-    {
-        return Some(Duration::from_secs(metadata.duration_seconds));
-    }
-    None
+    let metadata = model.queue.get_current_song()?.metadata.as_ref()?;
+    Some(Duration::from_secs(metadata.duration_seconds))
 }
 
 pub fn goto_percent_current_song(model: &Model, position: u8) {
-    if let Some(total_duration) = get_current_song_total_duration(model) {
-        let percentage_position = (position as f64 / 10.0).clamp(0.0, 0.9);
-        let desired_position =
-            Duration::from_secs_f64(total_duration.as_secs_f64() * percentage_position);
-
-        let sink = &model.audio.sink;
-        if let Err(e) = sink.try_seek(desired_position) {
-            error!("{e}");
-        }
+    if let Some(total) = get_current_song_total_duration(model) {
+        let fraction = (position as f64 / 10.0).min(0.9);
+        set_current_duration(model, total.mul_f64(fraction));
     }
 }
 
-pub fn volume_up(model: &mut Model, val: f32) {
-    let sink = &model.audio.sink;
-    let curr_vol = sink.volume();
-    let new_vol = (curr_vol + val).clamp(0.0, 1.0);
-    sink.set_volume(new_vol);
-    model.saved_state.volume = new_vol;
-    debug!("Volume increased to {new_vol:.2}");
-}
-
-pub fn volume_down(model: &mut Model, val: f32) {
-    let sink = &model.audio.sink;
-    let curr_vol = sink.volume();
-    let new_vol = (curr_vol - val).clamp(0.0, 1.0);
-    sink.set_volume(new_vol);
-    model.saved_state.volume = new_vol;
-    debug!("Volume decreased to {new_vol:.2}");
+pub fn change_volume(model: &mut Model, delta: f32) {
+    set_volume(model, (get_volume(model) + delta).clamp(0.0, 1.0));
 }
 
 pub fn get_volume(model: &Model) -> f32 {
     model.audio.sink.volume()
 }
 
-pub fn volume_off(model: &mut Model) {
-    model.audio.sink.set_volume(0f32);
-}
-
 pub fn set_volume(model: &mut Model, val: f32) {
     model.audio.sink.set_volume(val);
     model.saved_state.volume = val;
+    debug!("Volume set to {val:.2}");
 }
