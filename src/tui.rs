@@ -1,10 +1,8 @@
-mod bar;
 mod footer;
 mod hints;
 mod queue;
 
 use crate::Model;
-use bar::render_bar_popup;
 use footer::render_footer;
 use hints::render_hints_popup;
 use queue::render_queue;
@@ -36,8 +34,5 @@ pub fn render(model: &mut Model, frame: &mut Frame) {
 
     render_queue(model, frame, queue_area);
     render_footer(model, frame, footer_area);
-
-    // render popups
-    render_bar_popup(model, frame, app_area);
     render_hints_popup(model, frame, app_area);
 }
