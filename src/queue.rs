@@ -185,9 +185,18 @@ impl SongQueue {
     // Intent of this function is when user opens a specific dir for songs.
     // I.e. it's okay for this function to return error when no songs were found under
     // provided path.
+    // If provided path is relative, convert it to absolute
     pub fn open_path(path_str: &String) -> Result<Self> {
-        let songs = Self::load_songs_from_path(PathBuf::from(path_str))
-            .wrap_err(format!("Error opening {path_str}"))?;
+        let mut path = PathBuf::from(path_str);
+
+        if path.is_relative() {
+            let current_dir =
+                std::env::current_dir().wrap_err("Error getting current directory")?;
+            path = current_dir.join(path);
+        }
+
+        let songs =
+            Self::load_songs_from_path(path).wrap_err(format!("Error opening {path_str}"))?;
 
         Ok(Self {
             queue: songs,
@@ -211,6 +220,7 @@ impl SongQueue {
                             .filter(|t| t.matcher_type() == infer::MatcherType::Audio)
                             .is_some()
                         {
+                            debug!("Found audio file: {}", dir_entry.path().display());
                             songs.push(Song {
                                 path: dir_entry.path(),
                                 metadata: extract_metadata(dir_entry.path().as_path()),
@@ -229,6 +239,7 @@ impl SongQueue {
                         .filter(|t| t.matcher_type() == infer::MatcherType::Audio)
                         .is_some()
                     {
+                        debug!("Found audio file: {}", path.display());
                         songs.push(Song {
                             metadata: extract_metadata(&path),
                             path: path,

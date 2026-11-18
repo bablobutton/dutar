@@ -40,7 +40,7 @@ impl Model {
 
         let queue = if args.len() == 2 {
             // When exactly 1 argument is supplied,
-            // treat it as a song or a directory of songs to open.
+            // treat it as a song path or a directory of songs to open.
             // If unsuccessful, terminate app with error.
             let q = SongQueue::open_path(&args[1]).wrap_err("Error loading songs")?;
             debug!("Successfully loaded songs from {}", args[1]);

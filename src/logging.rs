@@ -15,7 +15,11 @@ pub fn init() {
             fs::create_dir_all(parent).unwrap();
         }
 
-        let file = File::create(log_path).unwrap();
+        let file = fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(log_path)
+            .unwrap();
         let writer = BufWriter::new(file);
 
         let mut builder = Builder::from_env(Env::default().default_filter_or("error,dutar=debug"));
