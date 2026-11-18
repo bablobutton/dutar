@@ -1,8 +1,8 @@
 use crate::Model;
-use ratatui::layout::Constraint;
-use ratatui::layout::Rect;
+use ratatui::layout::{Constraint, Margin, Rect};
 use ratatui::style::Color;
 use ratatui::style::Style;
+use ratatui::text::{Line, Span};
 use ratatui::widgets::BorderType;
 use ratatui::{
     Frame,
@@ -42,8 +42,11 @@ pub fn render_queue(model: &mut Model, frame: &mut Frame, chunk: Rect) {
 
     model.queue_table.select(visual_selection_idx);
 
-    let header = Row::new(vec!["Artist", "Title", "Album", "Duration"])
-        .style(Style::default().fg(Color::Yellow));
+    let header = match model.search {
+        Some(_) => Row::default().height(1),
+        None => Row::new(vec!["Artist", "Title", "Album", "Duration"])
+            .style(Style::default().fg(Color::Yellow)),
+    };
 
     let rows: Vec<Row> = display_songs
         .iter()
@@ -93,4 +96,16 @@ pub fn render_queue(model: &mut Model, frame: &mut Frame, chunk: Rect) {
     apply_scroll_padding(&mut model.queue_table, visual_selection_idx, &chunk);
 
     frame.render_stateful_widget(table, chunk, &mut model.queue_table);
+
+    if let Some(input) = &model.search {
+        let header_area = Rect {
+            height: 1,
+            ..chunk.inner(Margin::new(1, 1))
+        };
+        let line = Line::from(vec![
+            Span::raw("? > "),
+            Span::styled(input.as_str(), Style::default().fg(Color::Yellow)),
+        ]);
+        frame.render_widget(line, header_area);
+    }
 }

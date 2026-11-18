@@ -7,7 +7,7 @@ mod utils;
 
 use color_eyre::{Result, eyre::WrapErr};
 use db::DB;
-use log::{debug, error, warn};
+use log::{debug, error};
 use queue::SongQueue;
 use ratatui::crossterm::event::{self, KeyModifiers};
 use ratatui::widgets::TableState;
@@ -18,7 +18,8 @@ use std::time::{Duration, Instant};
 
 struct Model {
     app_state: AppState,
-    popup: Option<Popup>,
+    search: Option<String>,
+    show_hints: bool,
     queue_table: TableState,
     saved_state: SavedState,
     audio: Audio,
@@ -53,7 +54,8 @@ impl Model {
             app_state: AppState::Init,
             queue_table: TableState::new(),
             saved_state,
-            popup: None,
+            search: None,
+            show_hints: false,
             audio: Audio {
                 _stream: stream,
                 sink,
@@ -122,24 +124,6 @@ enum PlayerState {
     Paused,
 }
 
-#[derive(Debug, PartialEq)]
-struct BarState {
-    input: String,
-    bar_type: BarType,
-}
-
-#[derive(Debug, PartialEq)]
-enum Popup {
-    Bar(BarState),
-    Hint,
-}
-
-#[derive(Debug, PartialEq)]
-enum BarType {
-    Command,
-    Search,
-}
-
 #[derive(Debug)]
 struct Skip {
     direction: SkipDirection,
@@ -164,20 +148,19 @@ enum Message {
     Next,
     Previous,
     Quit,
-    OpenCommandBar,
     OpenSafeExit,
-    ClosePopup,
-    PopupSubmit,
-    SendCharToPopup(char),
+    CloseSearch,
+    SubmitSearch,
+    SendCharToSearch(char),
     VolumeUp,
     VolumeDown,
-    SetVolume(u8),
     ToggleMute,
     Mute,
     Unmute,
     EraseChar,
-    OpenHint,
-    OpenSearchBar,
+    OpenSearch,
+    OpenHints,
+    CloseHints,
     ClearSearch,
     PlayFromSearch(usize),
     JumpTo(u8),
@@ -232,19 +215,20 @@ fn handle_event(model: &Model) -> Result<Option<Message>> {
 fn handle_key(key: event::KeyEvent, model: &Model) -> Option<Message> {
     let ctrl_c =
         key.code == event::KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL);
-    match &model.popup {
-        Some(Popup::Bar(_)) => match key.code {
-            _ if ctrl_c => Some(Message::ClosePopup),
-            event::KeyCode::Enter => Some(Message::PopupSubmit),
-            event::KeyCode::Esc => Some(Message::ClosePopup),
-            event::KeyCode::Char(c) => Some(Message::SendCharToPopup(c)),
+    match &model.search {
+        Some(_) => match key.code {
+            _ if ctrl_c => Some(Message::CloseSearch),
+            event::KeyCode::Enter => Some(Message::SubmitSearch),
+            event::KeyCode::Esc => Some(Message::CloseSearch),
+            event::KeyCode::Char(c) => Some(Message::SendCharToSearch(c)),
             event::KeyCode::Backspace => Some(Message::EraseChar),
             _ => None,
         },
-        Some(Popup::Hint) => match key.code {
-            event::KeyCode::Enter | event::KeyCode::Esc => Some(Message::ClosePopup),
-            _ => handle_hotkey(key.code),
-        },
+        None if model.show_hints
+            && matches!(key.code, event::KeyCode::Enter | event::KeyCode::Esc) =>
+        {
+            Some(Message::CloseHints)
+        }
         None if ctrl_c && model.safe_exit_active() => Some(Message::Quit),
         None if ctrl_c => Some(Message::OpenSafeExit),
         None if key.code == event::KeyCode::Esc => Some(Message::ClearSearch),
@@ -260,21 +244,13 @@ fn handle_hotkey(keycode: event::KeyCode) -> Option<Message> {
         event::KeyCode::Char('n') => Some(Message::Next),
         event::KeyCode::Char('p') => Some(Message::Previous),
         event::KeyCode::Char('m') => Some(Message::ToggleMute),
-        event::KeyCode::Char(':') => Some(Message::OpenCommandBar),
         event::KeyCode::Char('=' | '+') => Some(Message::VolumeUp),
         event::KeyCode::Char('-' | '_') => Some(Message::VolumeDown),
-        event::KeyCode::Char('?') => Some(Message::OpenHint),
-        event::KeyCode::Char('/') => Some(Message::OpenSearchBar),
+        event::KeyCode::Char('?') => Some(Message::OpenHints),
+        event::KeyCode::Char('/') => Some(Message::OpenSearch),
         event::KeyCode::Char(ch @ '0'..='9') => Some(Message::JumpTo(ch as u8 - b'0')),
         _ => None,
     }
-}
-
-fn open_bar(model: &mut Model, bar_type: BarType) {
-    model.popup = Some(Popup::Bar(BarState {
-        input: String::new(),
-        bar_type,
-    }));
 }
 
 fn set_playing(model: &mut Model, result: Result<()>) {
@@ -333,10 +309,6 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
             controls::change_volume(model, -0.05);
             None
         }
-        Message::SetVolume(vol) => {
-            controls::set_volume(model, vol.min(100) as f32 / 100.0);
-            None
-        }
         Message::ToggleMute => {
             if controls::get_volume(model) == 0.0 {
                 Some(Message::Unmute)
@@ -352,38 +324,42 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
             controls::set_volume(model, model.saved_state.volume);
             None
         }
-        Message::OpenCommandBar => {
-            open_bar(model, BarType::Command);
+        Message::OpenHints => {
+            model.show_hints = true;
             None
         }
-        Message::OpenSearchBar => {
-            open_bar(model, BarType::Search);
+        Message::CloseHints => {
+            model.show_hints = false;
             None
         }
-        Message::OpenHint => {
-            model.popup = Some(Popup::Hint);
+        Message::OpenSearch => {
+            model.search = Some(String::new());
             None
         }
-        Message::ClosePopup => {
-            model.popup = None;
+        Message::CloseSearch => {
+            model.search = None;
             None
         }
-        Message::PopupSubmit => handle_popup_submit(model),
-        Message::SendCharToPopup(c) => {
-            if let Some(Popup::Bar(bar)) = &mut model.popup {
-                bar.input.push(c);
-                if bar.bar_type == BarType::Search {
-                    model.queue.set_filter(&bar.input);
-                }
+        Message::SubmitSearch => {
+            model.search = None;
+            model
+                .queue
+                .get_display_songs()
+                .first()
+                .map(|(idx, _)| Message::PlayFromSearch(*idx))
+        }
+        Message::SendCharToSearch(c) => {
+            if let Some(input) = &mut model.search {
+                input.push(c);
+                model.queue.set_filter(input);
             }
             None
         }
         Message::EraseChar => {
-            if let Some(Popup::Bar(bar)) = &mut model.popup
-                && bar.input.pop().is_some()
-                && bar.bar_type == BarType::Search
+            if let Some(input) = &mut model.search
+                && input.pop().is_some()
             {
-                model.queue.set_filter(&bar.input);
+                model.queue.set_filter(input);
             }
             None
         }
@@ -407,47 +383,10 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
         }
     };
     debug!(
-        "Updated state [{:?}], popup [{:?}], Message [{:?}]",
-        model.app_state, model.popup, ret
+        "Updated state [{:?}], search [{:?}], Message [{:?}]",
+        model.app_state, model.search, ret
     );
     ret
-}
-
-fn handle_popup_submit(model: &mut Model) -> Option<Message> {
-    let Some(Popup::Bar(bar)) = model.popup.take() else {
-        return None;
-    };
-    match bar.bar_type {
-        BarType::Command => parse_command(&bar.input),
-        BarType::Search => model
-            .queue
-            .get_display_songs()
-            .first()
-            .map(|(idx, _)| Message::PlayFromSearch(*idx)),
-    }
-}
-
-fn parse_command(input: &str) -> Option<Message> {
-    let mut argv = input.split_whitespace();
-    let cmd = argv.next()?;
-    let mut arg = || argv.next().and_then(|a| a.parse().ok());
-    match cmd {
-        "next" => Some(Message::Next),
-        "prev" => Some(Message::Previous),
-        "toggleplay" => Some(Message::TogglePlay),
-        "play" => Some(Message::Play),
-        "pause" => Some(Message::Pause),
-        "setv" => arg().map(Message::SetVolume),
-        "quit" | "q" => Some(Message::Quit),
-        "mute" => Some(Message::Mute),
-        "unmute" => Some(Message::Unmute),
-        "togglemute" => Some(Message::ToggleMute),
-        "jump" => arg().map(Message::JumpTo),
-        _ => {
-            warn!("Unknown command: {cmd}");
-            None
-        }
-    }
 }
 
 fn handle_skip(model: &mut Model, direction: SkipDirection) {
@@ -514,46 +453,30 @@ mod tests {
 
         // can't test Message::Play because no music file can be loaded during tests
 
-        // open command bar
-        let result = update(&mut model, Message::OpenCommandBar);
+        let result = update(&mut model, Message::OpenSearch);
         assert_eq!(result, None);
-        assert_eq!(model.app_state, AppState::Player(PlayerState::Playing)); // didn't change
-        let Some(Popup::Bar(bar)) = &model.popup else {
-            panic!("expected bar popup");
-        };
-        assert_eq!(bar.bar_type, BarType::Command);
+        assert_eq!(model.search.as_deref(), Some(""));
 
-        // send char to popup
-        let result = update(&mut model, Message::SendCharToPopup('x'));
+        let result = update(&mut model, Message::SendCharToSearch('x'));
         assert_eq!(result, None);
-        assert_eq!(model.app_state, AppState::Player(PlayerState::Playing)); // didn't change
-        let Some(Popup::Bar(bar)) = &model.popup else {
-            panic!("expected bar popup");
-        };
-        assert_eq!(bar.bar_type, BarType::Command);
-        assert_eq!(bar.input, "x");
+        assert_eq!(model.search.as_deref(), Some("x"));
 
-        // erase that char
         let result = update(&mut model, Message::EraseChar);
         assert_eq!(result, None);
-        assert_eq!(model.app_state, AppState::Player(PlayerState::Playing)); // didn't change
-        let Some(Popup::Bar(bar)) = &model.popup else {
-            panic!("expected bar popup");
-        };
-        assert_eq!(bar.bar_type, BarType::Command);
-        assert!(bar.input.is_empty());
+        assert_eq!(model.search.as_deref(), Some(""));
 
-        // close the popup
-        let result = update(&mut model, Message::ClosePopup);
+        let result = update(&mut model, Message::CloseSearch);
         assert_eq!(result, None);
-        assert_eq!(model.app_state, AppState::Player(PlayerState::Playing)); // didn't change
-        assert!(model.popup.is_none());
+        assert!(model.search.is_none());
 
-        // open hints
-        let result = update(&mut model, Message::OpenHint);
+        let result = update(&mut model, Message::OpenHints);
         assert_eq!(result, None);
-        assert_eq!(model.app_state, AppState::Player(PlayerState::Playing)); // didn't change
-        assert!(matches!(model.popup, Some(Popup::Hint)));
+        assert!(model.show_hints);
+
+        let result = update(&mut model, Message::CloseHints);
+        assert_eq!(result, None);
+        assert!(!model.show_hints);
+        assert_eq!(model.app_state, AppState::Player(PlayerState::Playing));
 
         // Playing -> Quit
         let result = update(&mut model, Message::Quit);
