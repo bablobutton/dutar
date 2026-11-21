@@ -4,7 +4,7 @@ use color_eyre::{
     eyre::{OptionExt, eyre},
 };
 use log::{debug, error, info};
-use rodio::{decoder::DecoderBuilder, source::EmptyCallback};
+use rodio::{Sink, decoder::DecoderBuilder, source::EmptyCallback};
 use std::fs::File;
 use std::io::BufReader;
 use std::sync::mpsc::Sender;
@@ -32,14 +32,19 @@ pub fn load_song(model: &mut Model) -> Result<()> {
     let file = File::open(&song.path)?;
     let source = DecoderBuilder::new()
         .with_seekable(true)
-        .with_data(BufReader::with_capacity(1024 * 1024 * 5, file))
+        .with_data(BufReader::new(file))
         .build()?;
-    model.audio.sink.clear();
+
+    let sink = Sink::connect_new(model.audio.stream.mixer());
+    sink.set_volume(model.audio.sink.volume());
+    sink.pause();
+    model.audio.sink = sink;
     model.audio.sink.append(source);
     model
         .audio
         .sink
         .append(create_callback_source_play_next(model.channel.tx.clone()));
+
     Ok(())
 }
 

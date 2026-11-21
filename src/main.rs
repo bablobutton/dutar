@@ -56,10 +56,7 @@ impl Model {
             saved_state,
             search: None,
             show_hints: false,
-            audio: Audio {
-                _stream: stream,
-                sink,
-            },
+            audio: Audio { stream, sink },
             queue,
             channel: Channel { rx, tx },
             db,
@@ -99,7 +96,7 @@ struct Channel {
 }
 
 struct Audio {
-    _stream: OutputStream,
+    stream: OutputStream,
     sink: Sink,
 }
 
