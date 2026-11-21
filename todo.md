@@ -1,8 +1,8 @@
 ## Bugs
 
-* if holding skip button (L or J) it would keep skipping even after you release. It's probably processing too many presses. Can even result in skipping multiple songs. Same when holding (N or J) - seems like it'll keep skipping even after you release.
-We should probably have some general solution for holding the keys. Maybe ignore extra presses in a given time window?
-Interesting to look how neovim handles that because they probably do.
+* When holding "L" or "J" to skip duration, the latency of set_current_duration() jumps because it waits on an audio thread which polls perioidally. This is a problem on systems where keypress rate for holding a key is fast (e.g. 33 times a sec is default on X11).
+One solution is to reduce the polling interval, but that's a hack.
+The real solution is to only change nominal current duration and display that on UI and actually set duration of audio once the user stopped holding. But that's a lot of work. Kinda should have been handled by rodio since they already got a thread for playback.
 
 
 ## Rough plan of things to do in no particular order
