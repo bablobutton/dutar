@@ -1,10 +1,5 @@
 ## Bugs
 
-* When holding "L" or "J" to skip duration, the latency of set_current_duration() jumps because it waits on an audio thread which polls perioidally. This is a problem on systems where keypress rate for holding a key is fast (e.g. 33 times a sec is default on X11).
-One solution is to reduce the polling interval, but that's a hack.
-The real solution is to only change nominal current duration and display that on UI and actually set duration of audio once the user stopped holding. But that's a lot of work. Kinda should have been handled by rodio since they already got a thread for playback.
-
-
 ## Rough plan of things to do in no particular order
 
 * Support creating playlists.
@@ -36,6 +31,10 @@ The real solution is to only change nominal current duration and display that on
 * Some way to scroll list without switching songs (<C-d>/<C-u> like vim? ).
     - Or, alternatively we could make <C-n>/<C-p> to change selection instead of switching songs. Selected song can then be played when hit say <Enter>. <C-d>/<C-u> like vim can still be added.
 
+## Concurrency:
+* Pure ELM clearly stopped working for us because we have to react to timer events too now. See commit message in 66aaa935db.
+* It's worth looking into how tokio fits, but we can also just have 2 static threads with a shared event queue.
+One thread would read state -> render UI -> dispatch events into a queue and the other would process the event queue. I'm thinking this is simpler than bringing whole async/await concept.
 
 ...
 
@@ -43,6 +42,8 @@ The real solution is to only change nominal current duration and display that on
 
 * Sync with user-provided cloud drive - ? gdrive, yandex, s3? This would solve most use cases of p2p network. I think we should have this before multi-platform support.
 
+* You know how steam can offer to dowload missing data from devices on the same LAN? We can do that too - automatically expose access to libraries of users on the same network and offer user to download missing songs from them.
+    - Later, the same sharing can work over internet - given that users have "friended" each other. Though that will require some sort of central server (either server-client or p2p NAT).
 
 ## Side quests
 

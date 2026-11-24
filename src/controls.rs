@@ -39,6 +39,7 @@ pub fn load_song(model: &mut Model) -> Result<()> {
     sink.set_volume(model.audio.sink.volume());
     sink.pause();
     model.audio.sink = sink;
+    model.last_skip = None;
     model.audio.sink.append(source);
     model
         .audio
@@ -93,27 +94,31 @@ pub fn play_previous(model: &mut Model) -> Result<()> {
     Ok(())
 }
 
-pub fn quadratic_skip(model: &Model) {
-    let (Some(skip), Some(total)) = (&model.last_skip, get_current_song_total_duration(model))
-    else {
+pub fn quadratic_skip(model: &mut Model) {
+    let total = get_current_song_total_duration(model);
+    let (Some(skip), Some(total)) = (&mut model.last_skip, total) else {
         return;
     };
     let step = Duration::from_secs(skip.streak.pow(2) as u64).min(total / 10);
-    let pos = get_current_duration(model);
-    let target = match skip.direction {
-        SkipDirection::Backwards => pos.saturating_sub(step),
-        SkipDirection::Forwards => pos + step,
+    skip.target = match skip.direction {
+        SkipDirection::Backwards => skip.target.saturating_sub(step),
+        SkipDirection::Forwards => (skip.target + step).min(total),
     };
-    set_current_duration(model, target);
 }
 
 pub fn get_current_duration(model: &Model) -> Duration {
-    model.audio.sink.get_pos()
+    model
+        .last_skip
+        .as_ref()
+        .map_or_else(|| model.audio.sink.get_pos(), |s| s.target)
 }
 
-pub fn set_current_duration(model: &Model, duration: Duration) {
+pub fn set_current_duration(model: &mut Model, duration: Duration) {
+    model.last_skip = None;
     if let Err(e) = model.audio.sink.try_seek(duration) {
-        error!("Error seeking to {duration:?}: {e}");
+        panic!("Error seeking to {duration:?}: {e}");
+    } else {
+        debug!("Set current duration to {duration:?}");
     }
 }
 
@@ -122,7 +127,7 @@ pub fn get_current_song_total_duration(model: &Model) -> Option<Duration> {
     Some(Duration::from_secs(metadata.duration_seconds))
 }
 
-pub fn goto_percent_current_song(model: &Model, position: u8) {
+pub fn goto_percent_current_song(model: &mut Model, position: u8) {
     if let Some(total) = get_current_song_total_duration(model) {
         let fraction = (position as f64 / 10.0).min(0.9);
         set_current_duration(model, total.mul_f64(fraction));

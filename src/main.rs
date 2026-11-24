@@ -16,6 +16,8 @@ use std::env;
 use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender, channel};
 use std::time::{Duration, Instant};
 
+const PRESS_GRACE: Duration = Duration::from_millis(150);
+
 struct Model {
     app_state: AppState,
     search: Option<String>,
@@ -127,6 +129,7 @@ struct Skip {
     last_fired: Instant,
     last_streak_updated: Instant,
     streak: u32,
+    target: Duration,
 }
 
 #[derive(Debug, PartialEq)]
@@ -161,6 +164,7 @@ enum Message {
     ClearSearch,
     PlayFromSearch(usize),
     JumpTo(u8),
+    CommitSkip,
 }
 
 fn main() -> Result<()> {
@@ -189,27 +193,35 @@ fn run(model: &mut Model) -> Result<()> {
     Ok(())
 }
 
-fn handle_event(model: &Model) -> Result<Option<Message>> {
+fn handle_event(model: &mut Model) -> Result<Option<Message>> {
+    if model
+        .last_skip
+        .as_ref()
+        .is_some_and(|s| s.last_fired.elapsed() >= PRESS_GRACE)
+    {
+        return Ok(Some(Message::CommitSkip));
+    }
+
     match model.channel.rx.recv_timeout(Duration::from_millis(10)) {
         Ok(msg) => {
             debug!("Received message over channel: {msg:?}");
             return Ok(Some(msg));
         }
         Err(RecvTimeoutError::Timeout) => {}
-        Err(err) => error!("Error receiving channel message: {err}"),
+        Err(err) => panic!("Error receiving channel message: {err}"),
     }
 
     if event::poll(Duration::from_millis(90))?
         && let event::Event::Key(key) = event::read()?
         && key.kind == event::KeyEventKind::Press
     {
-        return Ok(handle_key(key, model));
+        return Ok(handle_key_press(key, model));
     }
 
     Ok(None)
 }
 
-fn handle_key(key: event::KeyEvent, model: &Model) -> Option<Message> {
+fn handle_key_press(key: event::KeyEvent, model: &Model) -> Option<Message> {
     let ctrl_c =
         key.code == event::KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL);
     match &model.search {
@@ -378,20 +390,26 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
             controls::goto_percent_current_song(model, place);
             None
         }
+        Message::CommitSkip => {
+            if let Some(target) = model.last_skip.as_ref().map(|s| s.target) {
+                controls::set_current_duration(model, target);
+            }
+            None
+        }
     };
     debug!(
-        "Updated state [{:?}], search [{:?}], Message [{:?}]",
-        model.app_state, model.search, ret
+        "In message [{:?}], updated state [{:?}], search [{:?}], out message [{:?}]",
+        msg, model.app_state, model.search, ret
     );
     ret
 }
 
 fn handle_skip(model: &mut Model, direction: SkipDirection) {
-    const PRESS_GRACE: Duration = Duration::from_millis(250);
     const STREAK_LEVELUP_COOLDOWN: Duration = Duration::from_secs(1);
     const MAX_STREAK: u32 = 16;
 
     let now = Instant::now();
+    let pos = controls::get_current_duration(model);
     match &mut model.last_skip {
         Some(skip)
             if skip.direction == direction && now.duration_since(skip.last_fired) < PRESS_GRACE =>
@@ -408,6 +426,7 @@ fn handle_skip(model: &mut Model, direction: SkipDirection) {
                 last_fired: now,
                 last_streak_updated: now,
                 streak: 1,
+                target: pos,
             })
         }
     }
